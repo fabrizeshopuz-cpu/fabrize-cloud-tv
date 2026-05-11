@@ -32,10 +32,16 @@ Server ishga tushganda konsolda `LAN browser: http://...:5173` manzillarini ko'r
 
 ## Muhim sozlamalar
 
+Renderdagi hozirgi server:
+
+```text
+https://fabrize-cloud-tv.onrender.com
+```
+
 Public server yoki VPSda ishlatganda:
 
 ```bash
-PUBLIC_BASE_URL=https://sizning-domain.uz npm start
+PUBLIC_BASE_URL=https://fabrize-cloud-tv.onrender.com npm start
 ```
 
 Shunda sotuv bo'limida mijozga beriladigan cabinet linklari to'g'ri domain bilan chiqadi.

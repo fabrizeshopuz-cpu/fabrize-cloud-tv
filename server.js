@@ -6,7 +6,7 @@ const path = require("path");
 
 const root = __dirname;
 const port = Number(process.env.PORT || 5173);
-const configuredBaseUrl = String(process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${port}`).replace(/\/$/, "");
+const configuredBaseUrl = String(process.env.PUBLIC_BASE_URL || "https://fabrize-cloud-tv.onrender.com").replace(/\/$/, "");
 const dataDir = path.join(root, "data");
 const uploadDir = path.join(root, "uploads");
 const apkDir = path.join(uploadDir, "apks");

@@ -50,7 +50,7 @@ import java.util.Locale;
 import java.util.UUID;
 
 public class MainActivity extends Activity {
-    private static final String SERVER_BASE = "http://192.168.0.173:5173";
+    private static final String SERVER_BASE = "https://fabrize-cloud-tv.onrender.com";
     private static final String PREFS_NAME = "fabrize-tv";
     private static final String KEY_DEVICE_CODE = "deviceCode";
     private static final String KEY_LAST_UPDATE_PROMPT = "lastUpdatePrompt";

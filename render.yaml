@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: fabrize-cloud-tv
+    env: node
+    plan: free
+    buildCommand: ""
+    startCommand: "node server.js"
+    envVars:
+      - key: PUBLIC_BASE_URL
+        value: https://fabrize-cloud-tv.onrender.com
+      - key: ADMIN_LOGIN
+        value: admin
+      - key: ADMIN_EMAIL
+        value: admin@fabrize.uz
