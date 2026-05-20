@@ -51,8 +51,16 @@ startCommand: npm start
 Public URL:
 
 ```text
-https://castmap-admin.onrender.com
+https://castmap.uz
 ```
+
+Deploy yangilanganini tekshirish:
+
+```text
+https://castmap.uz/api/health
+```
+
+Javob ichida `app: "CASTMAP"` chiqishi kerak. Agar `castmap.uz` eski FABRIZE sahifasini ochsa, domen eski Render servicega ulangan yoki yangi commit hali deploy bo'lmagan bo'ladi.
 
 ## Asosiy sahifalar
 
@@ -95,6 +103,16 @@ https://castmap-admin.onrender.com
 ```
 
 APK build qilinganda `castmap-player-apk/app/build.gradle` ichidagi `SERVER_BASE_URL` qiymati real server URL bilan bir xil bo'lishi kerak.
+
+## Server data reset
+
+Test ma'lumotlarini tozalash uchun:
+
+```powershell
+Invoke-WebRequest -Uri https://castmap.uz/api/admin/state/reset -Method POST
+```
+
+Bu endpoint serverdagi runtime JSON state'ni bo'sh CASTMAP holatiga qaytaradi. Productionda bu endpointni login/parol yoki admin token bilan himoyalash kerak.
 
 ## GitHub va deploy
 
