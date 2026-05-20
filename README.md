@@ -60,7 +60,7 @@ Deploy yangilanganini tekshirish:
 https://castmap.uz/api/health
 ```
 
-Javob ichida `app: "CASTMAP"` chiqishi kerak. Agar `castmap.uz` eski FABRIZE sahifasini ochsa, domen eski Render servicega ulangan yoki yangi commit hali deploy bo'lmagan bo'ladi.
+Javob ichida `app: "CASTMAP"` chiqishi kerak. Agar `castmap.uz` eski legacy sahifani ochsa, domen eski Render servicega ulangan yoki yangi commit hali deploy bo'lmagan bo'ladi.
 
 ## Asosiy sahifalar
 
