@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { CheckCircle2, MonitorPlay, Rocket } from "lucide-react";
 import { useCastmapStore } from "@/lib/store";
+import { UZBEK_REGIONS } from "@/lib/constants";
 
 const initialForm = {
   branchName: "Test lokatsiya",
@@ -52,7 +53,16 @@ export function TestSetupWizard() {
 
       <div className="mt-5 grid gap-3 xl:grid-cols-6 md:grid-cols-3">
         <Field label="Lokatsiya" value={form.branchName} onChange={(value) => update("branchName", value)} />
-        <Field label="Shahar" value={form.city} onChange={(value) => update("city", value)} />
+        <label className="grid gap-1 text-xs font-bold uppercase tracking-[0.16em] text-castMuted">
+          Viloyat
+          <select
+            className="h-11 rounded-xl border border-white/10 bg-black/30 px-3 text-sm font-bold normal-case tracking-normal text-white outline-none transition hover:border-castGold/30 focus:border-castGold/60"
+            value={form.city}
+            onChange={(event) => update("city", event.target.value)}
+          >
+            {UZBEK_REGIONS.map((region) => <option key={region} value={region}>{region}</option>)}
+          </select>
+        </label>
         <Field label="Ekran nomi" value={form.screenName} onChange={(value) => update("screenName", value)} />
         <Field label="Kampaniya" value={form.campaignName} onChange={(value) => update("campaignName", value)} />
         <Field label="APK kodi" value={form.pairingCode} onChange={(value) => update("pairingCode", value.toUpperCase())} />

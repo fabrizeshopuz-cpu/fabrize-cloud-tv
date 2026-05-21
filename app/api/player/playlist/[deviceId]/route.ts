@@ -5,7 +5,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ deviceId: 
   const { deviceId } = await params;
   const state = await readCastmapState();
   const device = state.devices.find((item) => item.id === deviceId || item.deviceId === deviceId);
-  const playlist = state.playlists.find((item) => item.name === device?.playlist)
+  const playlist = state.playlists.find((item) => device && item.deviceIds?.includes(device.id) && item.status === "published")
+    || state.playlists.find((item) => device && item.branchId === device.branchId && item.status === "published")
+    || state.playlists.find((item) => item.name === device?.playlist)
     || state.playlists.find((item) => item.target === device?.branch && item.status === "published")
     || state.playlists.find((item) => item.status === "published")
     || state.playlists[0];

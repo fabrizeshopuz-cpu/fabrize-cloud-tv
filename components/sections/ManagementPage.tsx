@@ -35,6 +35,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Select } from "@/components/ui/Select";
 import { Table } from "@/components/ui/Table";
 import { Tabs } from "@/components/ui/Tabs";
+import { UZBEK_REGIONS } from "@/lib/constants";
 import { useCastmapStore } from "@/lib/store";
 import type { Alert, ApkVersion, Branch, Campaign, CommandType, Device, Playlist, Schedule } from "@/types";
 
@@ -211,7 +212,7 @@ function LocationsContent({ query, openDrawer }: { query: string; openDrawer: (t
         <Metric title="Onlayn" value={String(store.devices.filter((device) => device.status === "online").length)} helper="Hozir faol" tone="green" />
         <Metric title="Offline" value={String(store.devices.filter((device) => device.status === "offline").length)} helper="Tekshirish kerak" tone="red" />
       </section>
-      <Table headers={["Lokatsiya", "Shahar", "Ish vaqti", "TV soni", "Onlayn", "Amallar"]}>
+      <Table headers={["Lokatsiya", "Viloyat", "Kampaniya", "Ish vaqti", "TV soni", "Holat", "Amallar"]}>
         {branches.map((branch) => (
           <LocationRow
             key={branch.id}
@@ -222,6 +223,7 @@ function LocationsContent({ query, openDrawer }: { query: string; openDrawer: (t
             onDetail={() => openDrawer(branch.name, [
               `Shahar: ${branch.city}`,
               `Manzil: ${branch.address}`,
+              `Kampaniya: ${store.campaigns.find((campaign) => campaign.id === branch.campaignId)?.name || "Biriktirilmagan"}`,
               `Ish vaqti: ${branch.workStart} - ${branch.workEnd}`,
               `TV soni: ${deviceCount(branch.id)}`,
               `Onlayn TV: ${onlineCount(branch.id)}`,
@@ -239,12 +241,19 @@ function LocationRow({ branch, editing, onEdit, onCancel, onDetail, deviceCount,
   const store = useCastmapStore();
   const [draft, setDraft] = useState(branch);
   const update = (key: keyof Branch, value: string) => setDraft((current) => ({ ...current, [key]: value }));
+  const campaignName = store.campaigns.find((campaign) => campaign.id === branch.campaignId)?.name || "Kampaniya tanlanmagan";
 
   if (editing) {
     return (
       <tr className="bg-castGold/5">
         <td className="px-4 py-3"><Input value={draft.name} onChange={(event) => update("name", event.target.value)} /></td>
-        <td className="px-4 py-3"><Input value={draft.city} onChange={(event) => update("city", event.target.value)} /></td>
+        <td className="px-4 py-3"><RegionSelect value={draft.city} onChange={(value) => update("city", value)} /></td>
+        <td className="px-4 py-3">
+          <Select value={draft.campaignId || ""} onChange={(event) => update("campaignId", event.target.value)}>
+            <option value="">Kampaniya tanlanmagan</option>
+            {store.campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
+          </Select>
+        </td>
         <td className="px-4 py-3">
           <div className="flex gap-2">
             <Input type="time" value={draft.workStart} onChange={(event) => update("workStart", event.target.value)} />
@@ -252,7 +261,7 @@ function LocationRow({ branch, editing, onEdit, onCancel, onDetail, deviceCount,
           </div>
         </td>
         <td className="px-4 py-3 text-castMuted">{deviceCount}</td>
-        <td className="px-4 py-3 text-green-300">{onlineCount}</td>
+        <td className="px-4 py-3"><StatusSummary onlineCount={onlineCount} deviceCount={deviceCount} /></td>
         <td className="px-4 py-3">
           <div className="flex flex-wrap gap-2">
             <Button variant="gold" onClick={() => { store.updateBranch(branch.id, draft); onCancel(); }}>Saqlash</Button>
@@ -267,9 +276,10 @@ function LocationRow({ branch, editing, onEdit, onCancel, onDetail, deviceCount,
     <tr className="hover:bg-white/[0.03]">
       <td className="px-4 py-3 font-bold text-white">{branch.name}<span className="block text-xs text-castMuted">{branch.address}</span></td>
       <td className="px-4 py-3 text-castMuted">{branch.city}</td>
+      <td className="px-4 py-3 text-castMuted">{campaignName}</td>
       <td className="px-4 py-3 text-castMuted">{branch.workStart} - {branch.workEnd}</td>
       <td className="px-4 py-3 text-castMuted">{deviceCount}</td>
-      <td className="px-4 py-3 text-green-300">{onlineCount}</td>
+      <td className="px-4 py-3"><StatusSummary onlineCount={onlineCount} deviceCount={deviceCount} /></td>
       <td className="px-4 py-3">
         <div className="flex flex-wrap gap-2">
           <Button onClick={onDetail}>Batafsil</Button>
@@ -278,6 +288,21 @@ function LocationRow({ branch, editing, onEdit, onCancel, onDetail, deviceCount,
         </div>
       </td>
     </tr>
+  );
+}
+
+function StatusSummary({ onlineCount, deviceCount }: { onlineCount: number; deviceCount: number }) {
+  if (!deviceCount) return <Badge>Nofaol</Badge>;
+  if (onlineCount === deviceCount) return <Badge tone="green">Ishlamoqda</Badge>;
+  if (onlineCount > 0) return <Badge tone="orange">{`${onlineCount}/${deviceCount} ishlamoqda`}</Badge>;
+  return <Badge tone="red">Ishlamayapti</Badge>;
+}
+
+function RegionSelect({ value, onChange, className }: { value: string; onChange: (value: string) => void; className?: string }) {
+  return (
+    <Select className={className} value={value} onChange={(event) => onChange(event.target.value)}>
+      {UZBEK_REGIONS.map((region) => <option key={region} value={region}>{region}</option>)}
+    </Select>
   );
 }
 
@@ -310,6 +335,7 @@ function LocationCreateCard() {
     name: "",
     city: "Toshkent",
     address: "",
+    campaignId: "",
     workStart: "09:00",
     workEnd: "22:00",
   });
@@ -326,15 +352,19 @@ function LocationCreateCard() {
           <p className="mt-1 text-sm text-castMuted">Keyin shu lokatsiyaga TV qurilma ulash va kontent biriktirish mumkin.</p>
         </div>
         <Input className="w-56" value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="Lokatsiya nomi" />
-        <Input className="w-44" value={form.city} onChange={(event) => update("city", event.target.value)} placeholder="Shahar" />
+        <RegionSelect className="w-44" value={form.city} onChange={(value) => update("city", value)} />
         <Input className="w-56" value={form.address} onChange={(event) => update("address", event.target.value)} placeholder="Manzil" />
+        <Select className="w-60" value={form.campaignId} onChange={(event) => update("campaignId", event.target.value)}>
+          <option value="">Avval saqlangan kampaniyani tanlang</option>
+          {store.campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
+        </Select>
         <Input className="w-32" type="time" value={form.workStart} onChange={(event) => update("workStart", event.target.value)} />
         <Input className="w-32" type="time" value={form.workEnd} onChange={(event) => update("workEnd", event.target.value)} />
         <Button
           variant="gold"
           onClick={() => {
             store.addBranch(form);
-            setForm({ name: "", city: form.city, address: "", workStart: form.workStart, workEnd: form.workEnd });
+            setForm({ name: "", city: form.city, address: "", campaignId: form.campaignId, workStart: form.workStart, workEnd: form.workEnd });
           }}
         >
           Qo'shish
@@ -349,17 +379,94 @@ function PlaylistsContent({ query, openDrawer }: { query: string; openDrawer: (t
   const [editingId, setEditingId] = useState("");
   const items = store.playlists.filter((playlist) => filterText(query, playlist.name, playlist.target, playlist.status));
   return (
-    <section className="grid gap-4 xl:grid-cols-3">
-      {items.map((playlist) => (
-        <PlaylistCard key={playlist.id} playlist={playlist} editing={editingId === playlist.id} onEdit={() => setEditingId(playlist.id)} onCancel={() => setEditingId("")} openDrawer={openDrawer} />
-      ))}
-    </section>
+    <>
+      <PlaylistCreateCard />
+      <section className="grid gap-4 xl:grid-cols-3">
+        {items.map((playlist) => (
+          <PlaylistCard key={playlist.id} playlist={playlist} editing={editingId === playlist.id} onEdit={() => setEditingId(playlist.id)} onCancel={() => setEditingId("")} openDrawer={openDrawer} />
+        ))}
+      </section>
+    </>
+  );
+}
+
+function PlaylistCreateCard() {
+  const store = useCastmapStore();
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    campaignId: store.campaigns[0]?.id || "",
+    branchId: store.branches[0]?.id || "",
+  });
+  const branchDevices = store.devices.filter((device) => !form.branchId || device.branchId === form.branchId);
+  const [deviceIds, setDeviceIds] = useState<string[]>([]);
+  const [mediaIds, setMediaIds] = useState<string[]>([]);
+  const toggle = (list: string[], id: string, setter: (next: string[]) => void) => setter(list.includes(id) ? list.filter((item) => item !== id) : [...list, id]);
+
+  return (
+    <Card className="border-castGold/20">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-black text-white">Yangi playlist yaratish</h3>
+          <p className="mt-1 text-sm text-castMuted">Media qaysi kampaniya, lokatsiya va TVlarda chiqishini aniq tanlang.</p>
+        </div>
+        <Button
+          variant="gold"
+          onClick={() => {
+            store.createPlaylist({ ...form, deviceIds, mediaIds });
+            setForm({ ...form, name: "", description: "" });
+            setDeviceIds([]);
+            setMediaIds([]);
+          }}
+        >
+          Playlist yaratish
+        </Button>
+      </div>
+      <div className="mt-4 grid gap-3 xl:grid-cols-4 md:grid-cols-2">
+        <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Playlist nomi" />
+        <Input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Tavsif" />
+        <Select value={form.campaignId} onChange={(event) => setForm({ ...form, campaignId: event.target.value })}>
+          <option value="">Kampaniya tanlanmagan</option>
+          {store.campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
+        </Select>
+        <Select value={form.branchId} onChange={(event) => { setForm({ ...form, branchId: event.target.value }); setDeviceIds([]); }}>
+          <option value="">Barcha lokatsiyalar</option>
+          {store.branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name} - {branch.city}</option>)}
+        </Select>
+      </div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <Checklist title="TV qurilmalar" empty="Bu lokatsiyada TV yo'q" items={branchDevices.map((device) => ({ id: device.id, label: `${device.name} - ${device.branch}`, sub: `${device.deviceId} / ${device.status}` }))} selected={deviceIds} onToggle={(id) => toggle(deviceIds, id, setDeviceIds)} />
+        <Checklist title="Media fayllar" empty="Media kutubxona bo'sh" items={store.media.map((asset) => ({ id: asset.id, label: asset.name, sub: `${asset.type} / ${asset.status}` }))} selected={mediaIds} onToggle={(id) => toggle(mediaIds, id, setMediaIds)} />
+      </div>
+    </Card>
+  );
+}
+
+function Checklist({ title, empty, items, selected, onToggle }: { title: string; empty: string; items: Array<{ id: string; label: string; sub: string }>; selected: string[]; onToggle: (id: string) => void }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+      <b className="text-sm text-white">{title}</b>
+      <div className="mt-3 grid max-h-48 gap-2 overflow-auto pr-1">
+        {items.length ? items.map((item) => (
+          <label key={item.id} className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/10 bg-black/20 p-2 text-sm hover:border-castGold/30">
+            <input type="checkbox" checked={selected.includes(item.id)} onChange={() => onToggle(item.id)} />
+            <span className="min-w-0">
+              <span className="block truncate font-bold text-white">{item.label}</span>
+              <span className="block truncate text-xs text-castMuted">{item.sub}</span>
+            </span>
+          </label>
+        )) : <p className="text-sm text-castMuted">{empty}</p>}
+      </div>
+    </div>
   );
 }
 
 function PlaylistCard({ playlist, editing, onEdit, onCancel, openDrawer }: { playlist: Playlist; editing: boolean; onEdit: () => void; onCancel: () => void; openDrawer: (title: string, rows: string[]) => void }) {
   const store = useCastmapStore();
   const [draft, setDraft] = useState(playlist);
+  const campaignName = playlist.campaignId ? store.campaigns.find((campaign) => campaign.id === playlist.campaignId)?.name : "";
+  const branchName = playlist.branchId ? store.branches.find((branch) => branch.id === playlist.branchId)?.name : "";
+  const tvNames = playlist.deviceIds?.map((id) => store.devices.find((device) => device.id === id)?.name || id) || [];
   return (
     <Card className="grid gap-4">
       <div className="flex items-start justify-between gap-3">
@@ -368,6 +475,10 @@ function PlaylistCard({ playlist, editing, onEdit, onCancel, openDrawer }: { pla
             <div className="grid gap-2">
               <Input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
               <Input value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
+              <Select value={draft.campaignId || ""} onChange={(event) => setDraft({ ...draft, campaignId: event.target.value || undefined })}>
+                <option value="">Kampaniya tanlanmagan</option>
+                {store.campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
+              </Select>
               <Select value={draft.target} onChange={(event) => setDraft({ ...draft, target: event.target.value })}>
                 {store.branches.map((branch) => <option key={branch.id} value={branch.name}>{branch.name}</option>)}
               </Select>
@@ -382,6 +493,8 @@ function PlaylistCard({ playlist, editing, onEdit, onCancel, openDrawer }: { pla
         <Badge tone={playlist.status === "published" ? "green" : "gray"}>{playlist.status}</Badge>
       </div>
       <div className="text-sm text-castMuted">Target: {playlist.target}</div>
+      <div className="text-sm text-castMuted">Kampaniya: {campaignName || "tanlanmagan"} / Lokatsiya: {branchName || "barcha"}</div>
+      <div className="text-sm text-castMuted">TVlar: {tvNames.length ? tvNames.join(", ") : "barcha yoki keyin tanlanadi"}</div>
       <div className="text-sm text-castMuted">Media: {playlist.items.length} ta, loop: {playlist.loop ? "yoqilgan" : "o'chirilgan"}</div>
       <div className="flex flex-wrap gap-2">
         {editing ? (
@@ -468,6 +581,9 @@ function CampaignCard({ campaign, openDrawer }: { campaign: Campaign; openDrawer
   const store = useCastmapStore();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(campaign);
+  const campaignBranches = store.branches.filter((branch) => branch.campaignId === campaign.id || campaign.targetBranches.includes(branch.id));
+  const campaignDevices = store.devices.filter((device) => campaignBranches.some((branch) => branch.id === device.branchId));
+  const onlineDevices = campaignDevices.filter((device) => device.status === "online").length;
   return (
     <Card>
       <div className="flex items-start justify-between gap-3">
@@ -491,8 +607,24 @@ function CampaignCard({ campaign, openDrawer }: { campaign: Campaign; openDrawer
       </div>
       <div className="mt-4 grid grid-cols-3 gap-3">
         <MiniStat label="Budget" value={campaign.budget} />
-        <MiniStat label="Target" value={campaign.impressionsTarget.toLocaleString("ru-RU")} />
-        <MiniStat label="Playback" value={campaign.playbackCount.toLocaleString("ru-RU")} />
+        <MiniStat label="Lokatsiya" value={String(campaignBranches.length)} />
+        <MiniStat label="TV holati" value={campaignDevices.length ? `${onlineDevices}/${campaignDevices.length}` : "0"} />
+      </div>
+      <div className="mt-4 grid gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+        <b className="text-sm text-white">Kampaniyaga bog'langan lokatsiya va TVlar</b>
+        {campaignBranches.length ? campaignBranches.map((branch) => {
+          const devices = campaignDevices.filter((device) => device.branchId === branch.id);
+          const online = devices.filter((device) => device.status === "online").length;
+          return (
+            <div key={branch.id} className="rounded-lg border border-white/10 bg-black/20 p-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-bold text-white">{branch.name}</span>
+                <StatusSummary onlineCount={online} deviceCount={devices.length} />
+              </div>
+              <p className="mt-1 text-xs text-castMuted">{branch.city} - {devices.length ? devices.map((device) => `${device.name} (${device.status})`).join(", ") : "TV ulanmagan"}</p>
+            </div>
+          );
+        }) : <p className="text-sm text-castMuted">Bu kampaniyaga lokatsiya biriktirilmagan.</p>}
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         {editing ? (
@@ -505,7 +637,12 @@ function CampaignCard({ campaign, openDrawer }: { campaign: Campaign; openDrawer
         )}
         <Button variant="gold" onClick={() => store.setCampaignStatus(campaign.id, "active")}>Start</Button>
         <Button onClick={() => store.setCampaignStatus(campaign.id, "paused")}>Pause</Button>
-        <Button onClick={() => openDrawer(campaign.name, [`Filiallar: ${campaign.targetBranches.length}`, `Playlistlar: ${campaign.assignedPlaylists.length}`, `Proof of play: ${campaign.playbackCount}`])}>Analitika</Button>
+        <Button onClick={() => openDrawer(campaign.name, [
+          `Lokatsiyalar: ${campaignBranches.map((branch) => branch.name).join(", ") || "yo'q"}`,
+          `TV qurilmalar: ${campaignDevices.map((device) => `${device.name} - ${device.status}`).join(", ") || "yo'q"}`,
+          `Playlistlar: ${campaign.assignedPlaylists.map((id) => store.playlists.find((playlist) => playlist.id === id)?.name || id).join(", ") || "yo'q"}`,
+          `Proof of play: ${campaign.playbackCount}`,
+        ])}>Analitika</Button>
         <Button variant="danger" onClick={() => store.deleteCampaign(campaign.id)}>O'chirish</Button>
       </div>
     </Card>

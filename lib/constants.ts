@@ -13,3 +13,18 @@ export const commandLabels = {
 } as const;
 
 export const dayLabels = ["Dush", "Sesh", "Chor", "Pay", "Jum", "Shan", "Yak"];
+
+export const UZBEK_REGIONS = [
+  "Andijon",
+  "Buxoro",
+  "Farg'ona",
+  "Jizzax",
+  "Xorazm",
+  "Namangan",
+  "Navoiy",
+  "Qashqadaryo",
+  "Samarqand",
+  "Sirdaryo",
+  "Surxondaryo",
+  "Toshkent",
+] as const;

@@ -18,6 +18,7 @@ export interface Branch {
   name: string;
   city: string;
   address: string;
+  campaignId?: string;
   screenCount: number;
   onlineCount: number;
   todayPlaybackHours: number;
@@ -48,6 +49,9 @@ export interface Playlist {
   name: string;
   description: string;
   target: string;
+  campaignId?: string;
+  branchId?: string;
+  deviceIds?: string[];
   status: "draft" | "published" | "archived";
   loop: boolean;
   items: PlaylistItem[];

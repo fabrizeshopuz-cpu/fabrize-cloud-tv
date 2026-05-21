@@ -48,6 +48,7 @@ interface AddBranchInput {
   name: string;
   city?: string;
   address?: string;
+  campaignId?: string;
   workStart?: string;
   workEnd?: string;
 }
@@ -69,6 +70,15 @@ export interface TestChainInput {
   workEnd: string;
 }
 
+interface CreatePlaylistInput {
+  name: string;
+  description?: string;
+  campaignId?: string;
+  branchId?: string;
+  deviceIds?: string[];
+  mediaIds?: string[];
+}
+
 interface CastmapState {
   devices: Device[];
   media: MediaAsset[];
@@ -87,6 +97,7 @@ interface CastmapState {
   toasts: ToastMessage[];
   pushToast: (text: string, tone?: ToastMessage["tone"]) => void;
   addPlaylist: () => Playlist;
+  createPlaylist: (input: CreatePlaylistInput) => Playlist;
   updatePlaylist: (id: string, patch: Partial<Playlist>) => void;
   publishPlaylist: (id: string) => void;
   duplicatePlaylist: (id: string) => void;
@@ -286,6 +297,40 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
     return playlist;
   }, [branches, media, playlists.length, pushToast]);
 
+  const createPlaylist = useCallback((input: CreatePlaylistInput) => {
+    const branch = branches.find((item) => item.id === input.branchId);
+    const selectedMedia = input.mediaIds?.length
+      ? media.filter((item) => input.mediaIds?.includes(item.id))
+      : media.slice(0, 1);
+    const playlist: Playlist = {
+      id: uid("playlist"),
+      name: input.name.trim() || `Yangi playlist ${playlists.length + 1}`,
+      description: input.description?.trim() || "Kampaniya, lokatsiya va TV qurilmalarga biriktirilgan playlist",
+      target: branch?.name || "Barcha TV qurilmalar",
+      campaignId: input.campaignId,
+      branchId: input.branchId,
+      deviceIds: input.deviceIds || [],
+      status: "draft",
+      loop: true,
+      items: selectedMedia.map((item, index) => ({
+        id: uid("item"),
+        mediaId: item.id,
+        duration: item.type === "video" ? 20 : 10,
+        transition: "fade",
+        order: index + 1,
+        priority: 1,
+        status: "active",
+      })),
+      updatedAt: formatDateTime(),
+    };
+    setPlaylists((current) => [playlist, ...current]);
+    if (input.deviceIds?.length) {
+      setDevices((current) => current.map((device) => input.deviceIds?.includes(device.id) ? { ...device, playlist: playlist.name } : device));
+    }
+    pushToast("Playlist yaratildi va tanlangan TV/lokatsiyaga biriktirildi.");
+    return playlist;
+  }, [branches, media, playlists.length, pushToast]);
+
   const updatePlaylist = useCallback((id: string, patch: Partial<Playlist>) => {
     setPlaylists((current) => current.map((playlist) => playlist.id === id ? { ...playlist, ...patch, updatedAt: formatDateTime() } : playlist));
     const nextName = patch.name?.trim();
@@ -402,6 +447,7 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
       name: input.name.trim() || `Yangi lokatsiya ${branches.length + 1}`,
       city: input.city?.trim() || "Toshkent",
       address: input.address?.trim() || input.name.trim() || "Yangi manzil",
+      campaignId: input.campaignId || campaigns[0]?.id,
       screenCount: 0,
       onlineCount: 0,
       todayPlaybackHours: 0,
@@ -411,7 +457,7 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
     setBranches((current) => [branch, ...current]);
     pushToast("Lokatsiya qo'shildi.");
     return branch;
-  }, [branches.length, pushToast]);
+  }, [branches.length, campaigns, pushToast]);
 
   const updateBranch = useCallback((id: string, patch: Partial<Branch>) => {
     const oldBranch = branches.find((branch) => branch.id === id);
@@ -581,6 +627,7 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
       name: input.branchName.trim() || `Test lokatsiya ${branches.length + 1}`,
       city: input.city.trim() || "Toshkent",
       address: input.branchName.trim() || "Test manzil",
+      campaignId: undefined,
       screenCount: 1,
       onlineCount: 1,
       todayPlaybackHours: 1,
@@ -676,6 +723,7 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
       impressionsTarget: 1000,
       playbackCount: 1,
     };
+    branch.campaignId = campaign.id;
     const log: PlaybackLog = {
       id: uid("log"),
       deviceId: device.id,
@@ -834,6 +882,7 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
     toasts,
     pushToast,
     addPlaylist,
+    createPlaylist,
     updatePlaylist,
     publishPlaylist,
     duplicatePlaylist,
@@ -874,7 +923,7 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
     deleteApkVersion,
     addWidgetToPlaylist,
     deleteWidget,
-  }), [addBranch, addCampaign, addMediaAsset, addPlaylist, addSchedule, addUser, addWidgetToPlaylist, alerts, apkVersions, billingPlans, branches, campaigns, clearOperationalData, clearTemplates, clearTestBranches, commands, createCampaign, createMediaFromDraft, createTestChain, deleteAlert, deleteApkVersion, deleteBranch, deleteCampaign, deleteDevice, deleteMediaAsset, deletePlaylist, deleteSchedule, deleteUser, deleteWidget, devices, duplicatePlaylist, ignoreAlert, media, pairDevice, playbackLogs, playlists, publishPlaylist, pushToast, resolveAlert, rollbackApk, rolloutApk, schedules, sendCommand, setCampaignStatus, toasts, toggleSchedule, toggleUserStatus, updateBranch, updateCampaign, updateDevice, updateMediaAsset, updatePlan, updatePlaylist, uploadApk, users, widgets]);
+  }), [addBranch, addCampaign, addMediaAsset, addPlaylist, addSchedule, addUser, addWidgetToPlaylist, alerts, apkVersions, billingPlans, branches, campaigns, clearOperationalData, clearTemplates, clearTestBranches, commands, createCampaign, createMediaFromDraft, createPlaylist, createTestChain, deleteAlert, deleteApkVersion, deleteBranch, deleteCampaign, deleteDevice, deleteMediaAsset, deletePlaylist, deleteSchedule, deleteUser, deleteWidget, devices, duplicatePlaylist, ignoreAlert, media, pairDevice, playbackLogs, playlists, publishPlaylist, pushToast, resolveAlert, rollbackApk, rolloutApk, schedules, sendCommand, setCampaignStatus, toasts, toggleSchedule, toggleUserStatus, updateBranch, updateCampaign, updateDevice, updateMediaAsset, updatePlan, updatePlaylist, uploadApk, users, widgets]);
 
   return (
     <CastmapContext.Provider value={value}>

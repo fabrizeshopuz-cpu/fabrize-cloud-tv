@@ -60,7 +60,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ code: stri
   }
 
   const branch = state.branches.find((item) => item.id === device.branchId);
-  const playlist = state.playlists.find((item) => item.name === device.playlist)
+  const playlist = state.playlists.find((item) => item.deviceIds?.includes(device.id) && item.status === "published")
+    || state.playlists.find((item) => item.branchId === device.branchId && item.status === "published")
+    || state.playlists.find((item) => item.name === device.playlist)
     || state.playlists.find((item) => item.target === device.branch && item.status === "published")
     || state.playlists.find((item) => item.status === "published")
     || state.playlists[0];
