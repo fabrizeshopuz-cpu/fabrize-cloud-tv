@@ -20,7 +20,7 @@ import { StorageAnalytics } from "@/components/media/StorageAnalytics";
 import { defaultTags, mediaFolders, mediaMetrics } from "@/lib/mediaData";
 import { useCastmapStore } from "@/lib/store";
 import type { Branch, Campaign, Playlist } from "@/types";
-import type { MediaAsset, MediaFolder, MediaRole, MediaSortOption, UploadDraft } from "@/types/media";
+import type { MediaAsset, MediaFolder, MediaOrientation, MediaRole, MediaSortOption, MediaStatus, UploadDraft } from "@/types/media";
 
 const emptyFilters: MediaFilterState = {
   type: "all",
@@ -50,6 +50,8 @@ export default function MediaLibraryPage() {
   const [deleteTarget, setDeleteTarget] = useState<MediaAsset | null>(null);
   const [rejectTarget, setRejectTarget] = useState<MediaAsset | null>(null);
   const [playlistTarget, setPlaylistTarget] = useState<MediaAsset | null>(null);
+  const [editTarget, setEditTarget] = useState<MediaAsset | null>(null);
+  const [replaceTarget, setReplaceTarget] = useState<MediaAsset | null>(null);
   const [folderModalOpen, setFolderModalOpen] = useState(false);
   const [newFolder, setNewFolder] = useState({ name: "", description: "", permission: "Admin" });
   const [notice, setNotice] = useState("");
@@ -163,6 +165,18 @@ export default function MediaLibraryPage() {
       setPlaylistTarget(asset);
       return;
     }
+    if (action === "edit") {
+      setEditTarget(asset);
+      return;
+    }
+    if (action === "replace") {
+      setReplaceTarget(asset);
+      return;
+    }
+    if (action === "download") {
+      downloadAsset(asset);
+      return;
+    }
     if (action === "move") {
       const nextFolder = asset.folder === "Promo" ? "Retail Ads" : "Promo";
       const updated = { ...asset, folder: nextFolder };
@@ -176,6 +190,22 @@ export default function MediaLibraryPage() {
       return;
     }
     showNotice(`${asset.name}: ${action} amali bajarildi.`);
+  };
+
+  const downloadAsset = (asset: MediaAsset) => {
+    const href = asset.cdnUrl || asset.fileUrl;
+    if (!href) {
+      showNotice("Yuklab olish uchun URL topilmadi.");
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = asset.name;
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    showNotice("Yuklab olish boshlandi.");
   };
 
   const confirmDelete = async () => {
@@ -330,6 +360,25 @@ export default function MediaLibraryPage() {
       <MediaPreviewModal asset={preview} onClose={() => setPreview(null)} />
       <DeleteConfirm asset={deleteTarget} onCancel={() => setDeleteTarget(null)} onConfirm={confirmDelete} />
       <RejectReason asset={rejectTarget} onCancel={() => setRejectTarget(null)} onConfirm={confirmReject} />
+      <MetadataEditModal
+        asset={editTarget}
+        folders={folders}
+        onCancel={() => setEditTarget(null)}
+        onSave={(asset) => {
+          updateAsset(asset);
+          setEditTarget(null);
+          showNotice("Media metadata yangilandi.");
+        }}
+      />
+      <ReplaceFileModal
+        asset={replaceTarget}
+        onCancel={() => setReplaceTarget(null)}
+        onReplace={(asset) => {
+          updateAsset(asset);
+          setReplaceTarget(null);
+          showNotice("Media fayli almashtirildi.");
+        }}
+      />
       <PlaylistAssignModal
         asset={playlistTarget}
         playlists={store.playlists}
@@ -345,6 +394,158 @@ export default function MediaLibraryPage() {
       />
       <FolderModal open={folderModalOpen} value={newFolder} onChange={setNewFolder} onCancel={() => setFolderModalOpen(false)} onConfirm={createFolder} />
     </main>
+  );
+}
+
+function MetadataEditModal({
+  asset,
+  folders,
+  onCancel,
+  onSave,
+}: {
+  asset: MediaAsset | null;
+  folders: MediaFolder[];
+  onCancel: () => void;
+  onSave: (asset: MediaAsset) => void;
+}) {
+  const [draft, setDraft] = useState<MediaAsset | null>(asset);
+  const [tags, setTags] = useState(asset?.tags.join(", ") || "");
+
+  useEffect(() => {
+    setDraft(asset);
+    setTags(asset?.tags.join(", ") || "");
+  }, [asset]);
+
+  if (!asset || !draft) return null;
+
+  const save = () => {
+    const nextTags = tags.split(",").map((tag) => tag.trim()).filter(Boolean);
+    onSave({ ...draft, tags: [...new Set(nextTags)] });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-5">
+      <section className="w-full max-w-2xl rounded-2xl border border-white/10 bg-castCard p-5">
+        <h2 className="text-xl font-black text-white">Metadata tahrirlash</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <label className="grid gap-2 text-sm text-castMuted">
+            Media nomi
+            <input className="h-11 rounded-xl border border-white/10 bg-[#0D0D0D] px-3 text-white outline-none" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
+          </label>
+          <label className="grid gap-2 text-sm text-castMuted">
+            Papka
+            <select className="h-11 rounded-xl border border-white/10 bg-[#0D0D0D] px-3 text-white outline-none" value={draft.folder} onChange={(event) => setDraft({ ...draft, folder: event.target.value })}>
+              {[...new Set([draft.folder, ...folders.map((folder) => folder.name)])].map((folder) => <option key={folder}>{folder}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm text-castMuted">
+            Status
+            <select className="h-11 rounded-xl border border-white/10 bg-[#0D0D0D] px-3 text-white outline-none" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as MediaStatus })}>
+              {["active", "draft", "approval", "archived", "expired", "processing", "failed"].map((status) => <option key={status} value={status}>{status}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm text-castMuted">
+            Orientation
+            <select className="h-11 rounded-xl border border-white/10 bg-[#0D0D0D] px-3 text-white outline-none" value={draft.orientation} onChange={(event) => setDraft({ ...draft, orientation: event.target.value as MediaOrientation })}>
+              {["landscape", "portrait", "square", "responsive"].map((orientation) => <option key={orientation} value={orientation}>{orientation}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm text-castMuted">
+            Davomiyligi
+            <input className="h-11 rounded-xl border border-white/10 bg-[#0D0D0D] px-3 text-white outline-none" value={draft.duration || ""} placeholder="00:00:20" onChange={(event) => setDraft({ ...draft, duration: event.target.value })} />
+          </label>
+          <label className="grid gap-2 text-sm text-castMuted">
+            Rezolyutsiya
+            <input className="h-11 rounded-xl border border-white/10 bg-[#0D0D0D] px-3 text-white outline-none" value={draft.resolution || ""} placeholder="1920x1080" onChange={(event) => setDraft({ ...draft, resolution: event.target.value })} />
+          </label>
+          <label className="grid gap-2 text-sm text-castMuted md:col-span-2">
+            Taglar
+            <input className="h-11 rounded-xl border border-white/10 bg-[#0D0D0D] px-3 text-white outline-none" value={tags} placeholder="Promo, Food" onChange={(event) => setTags(event.target.value)} />
+          </label>
+        </div>
+        <div className="mt-5 flex justify-end gap-3">
+          <button className="rounded-xl border border-white/10 px-4 py-2 text-white" type="button" onClick={onCancel}>Bekor qilish</button>
+          <button className="rounded-xl bg-gradient-to-r from-[#FFE18A] to-castDeepGold px-4 py-2 font-black text-black" type="button" onClick={save}>Saqlash</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ReplaceFileModal({
+  asset,
+  onCancel,
+  onReplace,
+}: {
+  asset: MediaAsset | null;
+  onCancel: () => void;
+  onReplace: (asset: MediaAsset) => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    setFile(null);
+    setError("");
+    setUploading(false);
+  }, [asset]);
+
+  if (!asset) return null;
+
+  const submit = async () => {
+    if (!file) {
+      setError("Yangi fayl tanlanmagan.");
+      return;
+    }
+    setUploading(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/admin/upload", { method: "POST", body: formData });
+      if (!response.ok) throw new Error("Fayl serverga yuklanmadi");
+      const payload = await response.json() as { url: string; fileName: string; mime: string; sizeBytes: number };
+      const nextType = payload.mime.startsWith("image/") ? "image" : payload.mime.startsWith("video/") ? "video" : asset.type;
+      const extension = payload.mime.split("/")[1] || payload.fileName.split(".").pop() || asset.format;
+      onReplace({
+        ...asset,
+        name: payload.fileName || file.name,
+        type: nextType,
+        fileUrl: payload.url,
+        cdnUrl: payload.url,
+        thumbnailUrl: nextType === "image" ? payload.url : asset.thumbnailUrl,
+        size: formatBytes(payload.sizeBytes),
+        sizeBytes: payload.sizeBytes,
+        format: extension.toUpperCase(),
+        status: "active",
+      });
+    } catch (replaceError) {
+      setError(replaceError instanceof Error ? replaceError.message : "Fayl almashtirishda xatolik");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-5">
+      <section className="w-full max-w-lg rounded-2xl border border-white/10 bg-castCard p-5">
+        <h2 className="text-xl font-black text-white">Faylni almashtirish</h2>
+        <p className="mt-2 text-sm text-castMuted">{asset.name}</p>
+        <label className="mt-4 grid gap-2 text-sm text-castMuted">
+          Yangi fayl
+          <input className="rounded-xl border border-white/10 bg-[#0D0D0D] p-3 text-white outline-none" type="file" accept="video/*,image/*,.html,.pdf" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+        </label>
+        {file ? <p className="mt-3 rounded-xl border border-castGold/20 bg-castGold/10 px-3 py-2 text-sm text-castGold">{file.name} / {formatBytes(file.size)}</p> : null}
+        {error ? <p className="mt-3 rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</p> : null}
+        <div className="mt-5 flex justify-end gap-3">
+          <button className="rounded-xl border border-white/10 px-4 py-2 text-white" type="button" onClick={onCancel} disabled={uploading}>Bekor qilish</button>
+          <button className="rounded-xl bg-gradient-to-r from-[#FFE18A] to-castDeepGold px-4 py-2 font-black text-black disabled:opacity-50" type="button" onClick={submit} disabled={uploading}>
+            {uploading ? "Yuklanmoqda..." : "Almashtirish"}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -493,4 +694,16 @@ function FolderModal({
       </section>
     </div>
   );
+}
+
+function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 KB";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unit]}`;
 }
