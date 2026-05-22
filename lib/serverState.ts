@@ -39,6 +39,18 @@ export interface PersistedCastmapState {
 const dataDir = path.join(process.cwd(), "data");
 const statePath = path.join(dataDir, "castmap-state.json");
 
+const defaultApkVersions: ApkVersion[] = [{
+  id: "apk-1-0-1-20260522",
+  version: "v1.0.1",
+  changelog: "Video stream Range support va castmap.uz production API bilan yangi player build",
+  fileName: "castmap-player-1.0.1.apk",
+  size: "1.6 MB",
+  status: "latest",
+  installedDevices: 0,
+  failedDevices: 0,
+  uploadedAt: "2026-05-22 12:22",
+}];
+
 export function createEmptyState(): PersistedCastmapState {
   return {
     schemaVersion: STATE_SCHEMA_VERSION,
@@ -57,7 +69,7 @@ export function createEmptyState(): PersistedCastmapState {
       { id: "professional", name: "Professional", deviceLimit: 250, storageLimitGb: 1024, price: "1 990 000 so'm", current: true },
       { id: "enterprise", name: "Enterprise", deviceLimit: 5000, storageLimitGb: 10240, price: "Kelishiladi" },
     ],
-    apkVersions: [],
+    apkVersions: defaultApkVersions,
     widgets: [],
     playbackLogs: [],
     commands: [],
@@ -80,7 +92,7 @@ export function normalizeState(input: Partial<PersistedCastmapState> | null | un
     users: Array.isArray(input.users) ? input.users : [],
     branches: Array.isArray(input.branches) ? input.branches : [],
     billingPlans: Array.isArray(input.billingPlans) ? input.billingPlans : fallback.billingPlans,
-    apkVersions: Array.isArray(input.apkVersions) ? input.apkVersions : [],
+    apkVersions: Array.isArray(input.apkVersions) && input.apkVersions.length ? input.apkVersions : defaultApkVersions,
     widgets: Array.isArray(input.widgets) ? input.widgets : [],
     playbackLogs: Array.isArray(input.playbackLogs) ? input.playbackLogs : [],
     commands: Array.isArray(input.commands) ? input.commands : [],
