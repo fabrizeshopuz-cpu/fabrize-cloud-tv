@@ -1,5 +1,5 @@
-import DashboardPage from "./dashboard/page";
+import CastmapUzPage from "./uz/page";
 
 export default function HomePage() {
-  return <DashboardPage />;
+  return <CastmapUzPage />;
 }

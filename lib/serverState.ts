@@ -51,6 +51,86 @@ const defaultApkVersions: ApkVersion[] = [{
   uploadedAt: "2026-05-22 12:22",
 }];
 
+const defaultBranches: Branch[] = [{
+  id: "branch-bunyodkor",
+  name: "Bunyodkor",
+  city: "Toshkent",
+  address: "Bunyodkor",
+  screenCount: 1,
+  onlineCount: 1,
+  todayPlaybackHours: 0,
+  workStart: "00:00",
+  workEnd: "23:59",
+}];
+
+const defaultMedia: MediaAsset[] = [{
+  id: "media-start-video-20260527",
+  name: "a_cb_c_e_d_a_f_a_v_mp_.mp4",
+  type: "video",
+  status: "active",
+  thumbnailUrl: "",
+  fileUrl: "https://castmap.uz/api/uploads/a_cb_c_e_d_a_f_a_v_mp_-1779893774825.mp4",
+  size: "2.1 MB",
+  sizeBytes: 2200000,
+  duration: "00:10",
+  resolution: "1920x1080",
+  orientation: "landscape",
+  format: "MP4",
+  folder: "Promo",
+  tags: ["Promo"],
+  uploadedBy: "Super Admin",
+  uploadedAt: "2026-05-27 19:56",
+  usedInPlaylists: 1,
+  usedOnScreens: 1,
+  playbackCount: 0,
+}];
+
+const defaultDevices: Device[] = [{
+  id: "device-kj8aha-mpgpx88j",
+  name: "CASTMAP Player 01",
+  deviceId: "CM-PAIR-CSWGYK3Y",
+  branch: "Bunyodkor",
+  branchId: "branch-bunyodkor",
+  location: "Bunyodkor",
+  type: "Android TV",
+  status: "online",
+  signal: 95,
+  storage: 1,
+  ram: 12,
+  cpu: 8,
+  playlist: "Start playlist",
+  lastSeen: "Hozir",
+  lastHeartbeat: "2026-05-27T15:00:00.000Z",
+  apkVersion: "v1.0.9",
+  ipAddress: "192.168.0.101",
+  macAddress: "00:00:00:00:00:00",
+  uptime: "0d 0h",
+  screenResolution: "1920x1080",
+  currentMediaId: "media-start-video-20260527",
+  screenshotUrl: "",
+}];
+
+const defaultPlaylists: Playlist[] = [{
+  id: "playlist-start-20260527",
+  name: "Start playlist",
+  description: "TV ochilganda birinchi chiqadigan video",
+  target: "Bunyodkor",
+  branchId: "branch-bunyodkor",
+  deviceIds: ["device-kj8aha-mpgpx88j"],
+  status: "published",
+  loop: true,
+  items: [{
+    id: "playlist-item-start-video",
+    mediaId: "media-start-video-20260527",
+    duration: 10,
+    transition: "cut",
+    order: 1,
+    priority: 100,
+    status: "active",
+  }],
+  updatedAt: "2026-05-27 19:56",
+}];
+
 function apkVersionScore(version: string) {
   return version
     .replace(/^v/i, "")
@@ -77,14 +157,14 @@ export function createEmptyState(): PersistedCastmapState {
   return {
     schemaVersion: STATE_SCHEMA_VERSION,
     updatedAt: new Date().toISOString(),
-    devices: [],
-    media: [],
-    playlists: [],
+    devices: defaultDevices,
+    media: defaultMedia,
+    playlists: defaultPlaylists,
     schedules: [],
     campaigns: [],
     alerts: [],
     users: [],
-    branches: [],
+    branches: defaultBranches,
     billingPlans: [
       { id: "basic", name: "Basic", deviceLimit: 10, storageLimitGb: 100, price: "299 000 so'm" },
       { id: "business", name: "Business", deviceLimit: 50, storageLimitGb: 500, price: "899 000 so'm" },
@@ -101,18 +181,24 @@ export function createEmptyState(): PersistedCastmapState {
 export function normalizeState(input: Partial<PersistedCastmapState> | null | undefined): PersistedCastmapState {
   const fallback = createEmptyState();
   if (!input || input.schemaVersion !== STATE_SCHEMA_VERSION) return fallback;
+  const hasSetupContent = Boolean(
+    input.devices?.length
+    || input.media?.length
+    || input.playlists?.length
+    || input.branches?.length
+  );
   return {
     ...fallback,
     ...input,
     updatedAt: input.updatedAt || fallback.updatedAt,
-    devices: Array.isArray(input.devices) ? input.devices : [],
-    media: Array.isArray(input.media) ? input.media : [],
-    playlists: Array.isArray(input.playlists) ? input.playlists : [],
+    devices: hasSetupContent && Array.isArray(input.devices) ? input.devices : fallback.devices,
+    media: hasSetupContent && Array.isArray(input.media) ? input.media : fallback.media,
+    playlists: hasSetupContent && Array.isArray(input.playlists) ? input.playlists : fallback.playlists,
     schedules: Array.isArray(input.schedules) ? input.schedules : [],
     campaigns: Array.isArray(input.campaigns) ? input.campaigns : [],
     alerts: Array.isArray(input.alerts) ? input.alerts : [],
     users: Array.isArray(input.users) ? input.users : [],
-    branches: Array.isArray(input.branches) ? input.branches : [],
+    branches: hasSetupContent && Array.isArray(input.branches) ? input.branches : fallback.branches,
     billingPlans: Array.isArray(input.billingPlans) ? input.billingPlans : fallback.billingPlans,
     apkVersions: normalizeApkVersions(input.apkVersions),
     widgets: Array.isArray(input.widgets) ? input.widgets : [],
