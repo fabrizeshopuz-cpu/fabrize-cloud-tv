@@ -690,7 +690,7 @@ function MonitoringContent({ query, openDrawer }: { query: string; openDrawer: (
         return (
         <Card key={device.id} className="p-3">
           <div className="aspect-video overflow-hidden rounded-xl border border-white/10 bg-black">
-            {current?.type === "video" && previewUrl ? <video src={previewUrl} className="h-full w-full object-contain" muted controls playsInline /> : previewUrl ? <img src={previewUrl} alt={device.name} className="h-full w-full object-contain" /> : <div className="grid h-full place-items-center text-castMuted">Live preview kutilmoqda</div>}
+            {current?.type === "video" && previewUrl ? <video key={`${device.id}-${device.currentMediaId}-${previewUrl}`} src={previewUrl} className="h-full w-full object-contain" muted autoPlay loop controls playsInline preload="auto" /> : current?.type === "web" && previewUrl ? <iframe key={`${device.id}-${device.currentMediaId}-${previewUrl}`} src={previewUrl} title={current.name} className="h-full w-full border-0 bg-white" /> : previewUrl ? <img src={previewUrl} alt={device.name} className="h-full w-full object-contain" /> : <div className="grid h-full place-items-center text-castMuted">Live preview kutilmoqda</div>}
           </div>
           <div className="mt-3 flex items-start justify-between gap-3">
             <div>

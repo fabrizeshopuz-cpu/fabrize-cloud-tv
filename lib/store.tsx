@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   alerts as alertsSeed,
   apkVersions as apkSeed,
@@ -179,6 +179,7 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
   const [commands, setCommands] = useState<DeviceCommand[]>(initialCommands);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
+  const skipNextPersist = useRef(false);
 
   const pushToast = useCallback((text: string, tone: ToastMessage["tone"] = "success") => {
     const toast = { id: uid("toast"), text, tone };
@@ -186,33 +187,33 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
     window.setTimeout(() => setToasts((current) => current.filter((item) => item.id !== toast.id)), 2600);
   }, []);
 
+  const applySavedState = useCallback((saved: Partial<PersistedCastmapState>, options?: { remote?: boolean }) => {
+    if (saved.schemaVersion !== STATE_SCHEMA_VERSION) return;
+    if (options?.remote) skipNextPersist.current = true;
+    if (Array.isArray(saved.devices)) setDevices(saved.devices);
+    if (Array.isArray(saved.media)) setMedia(saved.media);
+    if (Array.isArray(saved.playlists)) setPlaylists(saved.playlists);
+    if (Array.isArray(saved.schedules)) setSchedules(saved.schedules);
+    if (Array.isArray(saved.campaigns)) setCampaigns(saved.campaigns);
+    if (Array.isArray(saved.alerts)) setAlerts(saved.alerts);
+    if (Array.isArray(saved.users)) setUsers(saved.users);
+    if (Array.isArray(saved.branches)) setBranches(saved.branches);
+    if (Array.isArray(saved.billingPlans)) setBillingPlans(saved.billingPlans);
+    if (Array.isArray(saved.apkVersions)) setApkVersions(saved.apkVersions);
+    if (Array.isArray(saved.widgets)) setWidgets(saved.widgets);
+    if (Array.isArray(saved.playbackLogs)) setPlaybackLogs(saved.playbackLogs);
+    if (Array.isArray(saved.commands)) setCommands(saved.commands);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-
-    const applySavedState = (saved: Partial<PersistedCastmapState>) => {
-      if (cancelled) return;
-      if (saved.schemaVersion !== STATE_SCHEMA_VERSION) return;
-      if (Array.isArray(saved.devices)) setDevices(saved.devices);
-      if (Array.isArray(saved.media)) setMedia(saved.media);
-      if (Array.isArray(saved.playlists)) setPlaylists(saved.playlists);
-      if (Array.isArray(saved.schedules)) setSchedules(saved.schedules);
-      if (Array.isArray(saved.campaigns)) setCampaigns(saved.campaigns);
-      if (Array.isArray(saved.alerts)) setAlerts(saved.alerts);
-      if (Array.isArray(saved.users)) setUsers(saved.users);
-      if (Array.isArray(saved.branches)) setBranches(saved.branches);
-      if (Array.isArray(saved.billingPlans)) setBillingPlans(saved.billingPlans);
-      if (Array.isArray(saved.apkVersions)) setApkVersions(saved.apkVersions);
-      if (Array.isArray(saved.widgets)) setWidgets(saved.widgets);
-      if (Array.isArray(saved.playbackLogs)) setPlaybackLogs(saved.playbackLogs);
-      if (Array.isArray(saved.commands)) setCommands(saved.commands);
-    };
 
     const hydrate = async () => {
       try {
         window.localStorage.removeItem("castmap-admin-state-v1");
         window.localStorage.removeItem("castmap-admin-state-v2");
         const raw = window.localStorage.getItem(STORAGE_KEY);
-        if (raw) applySavedState(JSON.parse(raw) as Partial<PersistedCastmapState>);
+        if (raw && !cancelled) applySavedState(JSON.parse(raw) as Partial<PersistedCastmapState>);
       } catch {
         window.localStorage.removeItem(STORAGE_KEY);
       }
@@ -221,7 +222,7 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
         const response = await fetch("/api/admin/state", { cache: "no-store" });
         if (response.ok) {
           const payload = await response.json() as { state?: Partial<PersistedCastmapState> };
-          if (payload.state) applySavedState(payload.state);
+          if (payload.state && !cancelled) applySavedState(payload.state, { remote: true });
         }
       } catch {
         // Local storage still keeps the panel usable when the API is unavailable.
@@ -234,7 +235,7 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [applySavedState]);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -258,12 +259,39 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
     };
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    if (skipNextPersist.current) {
+      skipNextPersist.current = false;
+      return;
+    }
+
     void fetch("/api/admin/state", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }).catch(() => undefined);
   }, [alerts, apkVersions, billingPlans, branches, campaigns, commands, devices, isHydrated, media, playbackLogs, playlists, schedules, users, widgets]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    let cancelled = false;
+
+    const syncRuntimeState = async () => {
+      try {
+        const response = await fetch("/api/admin/state", { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = await response.json() as { state?: Partial<PersistedCastmapState> };
+        if (!cancelled && payload.state) applySavedState(payload.state, { remote: true });
+      } catch {
+        // The current local state stays usable if live sync is temporarily unavailable.
+      }
+    };
+
+    const timer = window.setInterval(syncRuntimeState, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [applySavedState, isHydrated]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {

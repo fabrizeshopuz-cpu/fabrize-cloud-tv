@@ -596,7 +596,9 @@ function LivePanel({ query }: { query: string }) {
             </div>
             <div className="mt-4 aspect-video overflow-hidden rounded-lg border border-white/10 bg-black">
               {isVideo && source ? (
-                <video className="h-full w-full object-contain" src={source} muted controls playsInline />
+                <video key={`${device.id}-${device.currentMediaId}-${source}`} className="h-full w-full object-contain" src={source} muted autoPlay loop controls playsInline preload="auto" />
+              ) : current?.type === "web" && source ? (
+                <iframe key={`${device.id}-${device.currentMediaId}-${source}`} className="h-full w-full border-0 bg-white" src={source} title={current.name} />
               ) : source ? (
                 <img className="h-full w-full object-contain" src={source} alt={current?.name || device.name} />
               ) : (
