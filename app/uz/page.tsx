@@ -88,7 +88,7 @@ export default function CastmapUzPage() {
             <MonitorPlay className="h-9 w-9 text-castGold" />
             <b className="text-2xl text-white">APK player</b>
             <p className="text-sm leading-6 text-castMuted">Pairingdan keyin player `/api/v2/player/playlist` orqali kontent oladi, offline cache saqlaydi va playback telemetry yuboradi.</p>
-            <a className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-castGold px-4 font-black text-black" href="/downloads/castmap-player-1.2.1.apk">
+            <a className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-castGold px-4 font-black text-black" href="/downloads/castmap-player-1.2.2.apk">
               APK yuklash <PlayCircle className="h-4 w-4" />
             </a>
           </div>

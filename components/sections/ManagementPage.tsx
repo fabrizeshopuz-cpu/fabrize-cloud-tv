@@ -683,15 +683,18 @@ function MonitoringContent({ query, openDrawer }: { query: string; openDrawer: (
   const devices = store.devices.filter((device) => filterText(query, device.name, device.branch));
   return (
     <section className="grid gap-4 2xl:grid-cols-4 xl:grid-cols-3 md:grid-cols-2">
-      {devices.map((device) => (
+      {devices.map((device) => {
+        const current = store.media.find((media) => media.id === device.currentMediaId);
+        const previewUrl = current?.fileUrl || current?.cdnUrl || device.screenshotUrl;
+        return (
         <Card key={device.id} className="p-3">
           <div className="aspect-video overflow-hidden rounded-xl border border-white/10 bg-black">
-            {device.screenshotUrl ? <img src={device.screenshotUrl} alt={device.name} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-castMuted">Screenshot yo'q</div>}
+            {current?.type === "video" && previewUrl ? <video src={previewUrl} className="h-full w-full object-contain" muted controls playsInline /> : previewUrl ? <img src={previewUrl} alt={device.name} className="h-full w-full object-contain" /> : <div className="grid h-full place-items-center text-castMuted">Live preview kutilmoqda</div>}
           </div>
           <div className="mt-3 flex items-start justify-between gap-3">
             <div>
               <b className="text-white">{device.name}</b>
-              <p className="text-xs text-castMuted">{device.playlist}</p>
+              <p className="text-xs text-castMuted">{current?.name || device.playlist}</p>
             </div>
             <StatusBadge status={device.status} />
           </div>
@@ -701,7 +704,8 @@ function MonitoringContent({ query, openDrawer }: { query: string; openDrawer: (
             <Button onClick={() => openDrawer(device.name, deviceRows(device))}>Detail</Button>
           </div>
         </Card>
-      ))}
+        );
+      })}
     </section>
   );
 }

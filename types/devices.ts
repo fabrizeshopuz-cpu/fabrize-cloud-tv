@@ -5,7 +5,7 @@ export interface Device {
   branch: string;
   location: string;
   type: "Samsung Tizen" | "LG WebOS" | "Android TV" | "CASTMAP Box";
-  status: "online" | "offline" | "error" | "inactive";
+  status: "online" | "offline" | "error" | "inactive" | "update";
   signal: number;
   storage: number;
   ram: number;

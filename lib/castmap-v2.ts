@@ -1,4 +1,4 @@
-import { Activity, Building2, Clapperboard, Cloud, CreditCard, GalleryVerticalEnd, LayoutDashboard, Monitor, PlayCircle, RadioTower, ShieldCheck, Smartphone, UsersRound } from "lucide-react";
+import { Activity, Building2, Clapperboard, Cloud, CreditCard, Eye, GalleryVerticalEnd, LayoutDashboard, Monitor, PlayCircle, RadioTower, ShieldCheck, Smartphone, UsersRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export type V2MediaType = "video" | "image" | "web";
@@ -55,6 +55,8 @@ export const clientNav: V2NavItem[] = [
   { label: "TV qurilmalar", href: "/browse?tab=devices", icon: Monitor },
   { label: "Playlistlar", href: "/browse?tab=playlists", icon: GalleryVerticalEnd },
   { label: "Media", href: "/browse?tab=media", icon: Clapperboard },
+  { label: "Live", href: "/browse?tab=live", icon: Eye },
+  { label: "APK", href: "/browse?tab=apk", icon: Smartphone },
   { label: "Billing", href: "/browse?tab=billing", icon: CreditCard },
 ];
 
@@ -114,7 +116,7 @@ export const v2Devices: V2Device[] = [
     code: "CM-PAIR-CSWGYK3Y",
     branch: "Bunyodkor",
     status: "online",
-    apk: "v1.2.1",
+    apk: "v1.2.2",
     current: "a_cb_c_e_d_a_f_a_v_mp_.mp4",
     heartbeat: "Hozir",
   },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Activity, CheckCircle2, Clapperboard, GalleryVerticalEnd, MapPin, Monitor, Pause, Play, Plus, RefreshCw, Search, Trash2, Zap } from "lucide-react";
+import { Activity, CheckCircle2, Clapperboard, Eye, GalleryVerticalEnd, MapPin, Monitor, Pause, Play, Plus, RefreshCw, Search, Smartphone, Trash2, Zap } from "lucide-react";
 import { MediaUploadModal } from "@/components/media/MediaUploadModal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -11,7 +11,7 @@ import { clientNav } from "@/lib/castmap-v2";
 import { useCastmapStore } from "@/lib/store";
 import type { Branch, Campaign, Device, Playlist } from "@/types";
 
-type CabinetTab = "overview" | "campaigns" | "locations" | "devices" | "playlists" | "media" | "billing";
+type CabinetTab = "overview" | "campaigns" | "locations" | "devices" | "playlists" | "media" | "live" | "apk" | "billing";
 
 const tabLabels: Record<CabinetTab, string> = {
   overview: "Overview",
@@ -20,6 +20,8 @@ const tabLabels: Record<CabinetTab, string> = {
   devices: "TV qurilmalar",
   playlists: "Playlistlar",
   media: "Media",
+  live: "Live",
+  apk: "APK",
   billing: "Billing",
 };
 
@@ -78,6 +80,8 @@ export function ClientCabinet() {
       {tab === "devices" && <DevicesPanel query={query} />}
       {tab === "playlists" && <PlaylistsPanel query={query} />}
       {tab === "media" && <MediaPanel query={query} />}
+      {tab === "live" && <LivePanel query={query} />}
+      {tab === "apk" && <ApkPanel />}
       {tab === "billing" && <BillingPanel />}
     </V2AppShell>
   );
@@ -568,6 +572,114 @@ function BillingPanel() {
           <Button className="mt-5 w-full" variant={plan.current ? "ghost" : "gold"} onClick={() => store.updatePlan(plan.id)}>{plan.current ? "Joriy" : "Tanlash"}</Button>
         </article>
       ))}
+    </section>
+  );
+}
+
+function LivePanel({ query }: { query: string }) {
+  const store = useCastmapStore();
+  const devices = filterDevices(store.devices, query);
+  return (
+    <section className="grid gap-4 xl:grid-cols-3 md:grid-cols-2">
+      {devices.map((device) => {
+        const current = store.media.find((asset) => asset.id === device.currentMediaId);
+        const source = current?.fileUrl || current?.cdnUrl || device.screenshotUrl;
+        const isVideo = current?.type === "video";
+        return (
+          <article key={device.id} className="rounded-lg border border-white/10 bg-[#111] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-black text-white">{device.name}</h3>
+                <p className="mt-1 text-xs text-castMuted">{device.branch} / {device.deviceId}</p>
+              </div>
+              <V2Status value={device.status} />
+            </div>
+            <div className="mt-4 aspect-video overflow-hidden rounded-lg border border-white/10 bg-black">
+              {isVideo && source ? (
+                <video className="h-full w-full object-contain" src={source} muted controls playsInline />
+              ) : source ? (
+                <img className="h-full w-full object-contain" src={source} alt={current?.name || device.name} />
+              ) : (
+                <div className="grid h-full place-items-center text-sm font-bold text-castMuted">Live preview kutilmoqda</div>
+              )}
+            </div>
+            <div className="mt-4 grid gap-2 text-sm">
+              <MiniStat label="Hozir ko'rsatyapti" value={current?.name || device.playlist || "Ma'lumot yo'q"} />
+              <MiniStat label="Heartbeat" value={device.lastHeartbeat || device.lastSeen || "Kutilmoqda"} />
+              <MiniStat label="APK" value={device.apkVersion} />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button onClick={() => store.sendCommand(device.id, "TAKE_SCREENSHOT")}><Eye className="mr-2 inline h-4 w-4" />Screenshot</Button>
+              <Button onClick={() => store.sendCommand(device.id, "FORCE_SYNC")}><RefreshCw className="mr-2 inline h-4 w-4" />Sync</Button>
+              <Button onClick={() => store.sendCommand(device.id, "UPDATE_APK")}><Smartphone className="mr-2 inline h-4 w-4" />APK update</Button>
+            </div>
+          </article>
+        );
+      })}
+    </section>
+  );
+}
+
+function ApkPanel() {
+  const store = useCastmapStore();
+  const latest = store.apkVersions.find((version) => version.status === "latest") || store.apkVersions[0];
+  return (
+    <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <section className="rounded-lg border border-white/10 bg-[#111]">
+        <PanelHeader icon={Smartphone} title="APK versiyalar" action={latest ? "Barcha TVga update" : undefined} onAction={() => latest && store.rolloutApk(latest.id)} />
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[860px] text-left text-sm">
+            <thead className="text-xs uppercase text-castMuted">
+              <tr><th className="px-4 py-3">Versiya</th><th className="px-4 py-3">Fayl</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Yuklangan</th><th className="px-4 py-3">Amal</th></tr>
+            </thead>
+            <tbody>
+              {store.apkVersions.map((version) => (
+                <tr key={version.id} className="border-t border-white/10">
+                  <td className="px-4 py-4 font-bold text-white">{version.version}<span className="block text-xs text-castMuted">{version.changelog}</span></td>
+                  <td className="px-4 py-4 text-castMuted">{version.fileName}<span className="block text-xs">{version.size}</span></td>
+                  <td className="px-4 py-4"><V2Status value={version.status} /></td>
+                  <td className="px-4 py-4 text-castMuted">{version.uploadedAt}</td>
+                  <td className="px-4 py-4">
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="gold" onClick={() => store.rolloutApk(version.id)}>Rollout</Button>
+                      <Button onClick={() => store.rollbackApk(version.id)}>Rollback</Button>
+                      <Button variant="danger" onClick={() => store.deleteApkVersion(version.id)}>O'chirish</Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <aside className="grid content-start gap-4">
+        <section className="rounded-lg border border-white/10 bg-[#111] p-4">
+          <h2 className="text-lg font-black text-white">TV APK holati</h2>
+          <div className="mt-4 grid gap-3">
+            {store.devices.map((device) => (
+              <div key={device.id} className="rounded-lg border border-white/10 bg-black/25 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <b className="text-white">{device.name}</b>
+                  <V2Status value={device.apkVersion === latest?.version ? "latest" : "update"} />
+                </div>
+                <p className="mt-2 text-sm text-castMuted">{device.apkVersion} / target: {latest?.version || "yo'q"}</p>
+                <Button className="mt-3 w-full" onClick={() => store.sendCommand(device.id, "UPDATE_APK")}>Update yuborish</Button>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="rounded-lg border border-white/10 bg-[#111] p-4">
+          <h2 className="text-lg font-black text-white">Update commandlar</h2>
+          <div className="mt-4 grid gap-2">
+            {store.commands.filter((command) => command.type === "UPDATE_APK").slice(0, 6).map((command) => (
+              <div key={command.id} className="rounded-lg border border-white/10 bg-black/25 p-3 text-sm">
+                <b className="text-white">{command.status}</b>
+                <p className="mt-1 text-castMuted">{command.message}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      </aside>
     </section>
   );
 }

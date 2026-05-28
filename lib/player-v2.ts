@@ -1,6 +1,6 @@
 import { fallbackDurationSeconds, isCacheableMedia, isStreamMedia, mediaMime, mediaPublicUrl, mediaStreamKind, playableMediaAssets, playerMediaType, playlistDurationMs } from "@/lib/playerMedia";
 import type { PersistedCastmapState } from "@/lib/serverState";
-import type { Device, Playlist } from "@/types";
+import type { CommandType, Device, DeviceCommand, Playlist } from "@/types";
 import type { MediaAsset } from "@/types/media";
 
 export function cleanPlayerCode(value: string | undefined) {
@@ -31,6 +31,33 @@ export function selectV2Playlist(state: PersistedCastmapState, device: Device | 
 
 export function latestV2Apk(state: PersistedCastmapState) {
   return state.apkVersions.find((version) => version.status === "latest") || state.apkVersions[0] || null;
+}
+
+function commandForPlayer(command: DeviceCommand) {
+  const map: Partial<Record<CommandType, string>> = {
+    FORCE_SYNC: "refresh",
+    RESTART_APP: "restart",
+    CLEAR_CACHE: "refresh",
+    UPDATE_APK: "update",
+    REBOOT_DEVICE: "restart",
+    STOP_PLAYBACK: "refresh",
+    RESUME_PLAYBACK: "refresh",
+    TAKE_SCREENSHOT: "refresh",
+    SHOW_EMERGENCY_MESSAGE: "refresh",
+  };
+  return {
+    id: command.id,
+    command: map[command.type] || "refresh",
+    type: command.type,
+  };
+}
+
+function pendingDeviceCommand(state: PersistedCastmapState, device: Device | undefined) {
+  if (!device) return null;
+  return state.commands.find((command) =>
+    (command.deviceId === device.id || command.deviceId === device.deviceId)
+    && (command.status === "queued" || command.status === "running")
+  ) || null;
 }
 
 function playlistAssetItem(media: MediaAsset | undefined, origin: string, item: Playlist["items"][number], index: number, updatedAt: string) {
@@ -81,6 +108,8 @@ function fallbackAssetItem(media: MediaAsset, origin: string, index: number, upd
 export function buildV2PlaylistPayload(state: PersistedCastmapState, origin: string, rawDeviceId?: string) {
   const device = findV2PlayerDevice(state, rawDeviceId);
   const playlist = selectV2Playlist(state, device);
+  const latestApk = latestV2Apk(state);
+  const pendingCommand = pendingDeviceCommand(state, device);
   const version = Date.parse(state.updatedAt) || Date.now();
   const orderedItems = playlist
     ? [...playlist.items].sort((a, b) => (a.order - b.order) || (b.priority - a.priority))
@@ -104,6 +133,12 @@ export function buildV2PlaylistPayload(state: PersistedCastmapState, origin: str
       branchId: device.branchId,
       status: device.status,
       apkVersion: device.apkVersion,
+      pendingCommand: pendingCommand ? commandForPlayer(pendingCommand) : null,
+      latestApk: latestApk ? {
+        name: latestApk.fileName,
+        version: latestApk.version,
+        url: `/downloads/${latestApk.fileName}`,
+      } : null,
     } : null,
     playlist: playlist ? {
       id: playlist.id,

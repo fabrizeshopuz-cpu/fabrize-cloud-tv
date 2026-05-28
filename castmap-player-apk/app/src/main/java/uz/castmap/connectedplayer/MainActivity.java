@@ -60,7 +60,9 @@ public class MainActivity extends Activity {
     private static final String KEY_CODE = "device_code";
     private static final String KEY_LAST_PAYLOAD = "last_payload";
     private static final String KEY_LANGUAGE = "player_language";
-    private static final String APP_VERSION = "1.2.1";
+    private static final String KEY_LAST_COMMAND_ID = "last_command_id";
+    private static final String KEY_LAST_UPDATE_VERSION = "last_update_version";
+    private static final String APP_VERSION = "1.2.2";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -334,6 +336,7 @@ public class MainActivity extends Activity {
         if (media == null) media = payload.optJSONArray("items");
         applyDeviceSettings(currentDevice);
         applyPendingCommand(currentDevice);
+        applyAutomaticUpdate(currentDevice);
 
         ArrayList<MediaItem> next = new ArrayList<>();
         if (media != null) {
@@ -546,6 +549,8 @@ public class MainActivity extends Activity {
         if (command == null) return;
         String type = command.optString("command", "");
         String commandId = command.optString("id", "0");
+        if (commandId.length() > 0 && commandId.equals(getPrefs().getString(KEY_LAST_COMMAND_ID, ""))) return;
+        getPrefs().edit().putString(KEY_LAST_COMMAND_ID, commandId).apply();
         if ("refresh".equals(type)) {
             postCommandStatus(commandId, type, "Refresh bajarildi");
         } else if ("restart".equals(type)) {
@@ -555,6 +560,44 @@ public class MainActivity extends Activity {
             JSONObject apk = device.optJSONObject("latestApk");
             if (apk != null) downloadApk(apk, commandId);
         }
+    }
+
+    private void applyAutomaticUpdate(JSONObject device) {
+        if (device == null) return;
+        JSONObject apk = device.optJSONObject("latestApk");
+        if (apk == null) return;
+        String version = apk.optString("version", "");
+        if (!isNewerVersion(version, APP_VERSION)) return;
+        String lastAttempt = getPrefs().getString(KEY_LAST_UPDATE_VERSION, "");
+        if (version.equals(lastAttempt)) return;
+        getPrefs().edit().putString(KEY_LAST_UPDATE_VERSION, version).apply();
+        downloadApk(apk, "auto-" + version);
+    }
+
+    private boolean isNewerVersion(String candidate, String current) {
+        int[] next = versionParts(candidate);
+        int[] installed = versionParts(current);
+        for (int i = 0; i < Math.max(next.length, installed.length); i++) {
+            int nextPart = i < next.length ? next[i] : 0;
+            int installedPart = i < installed.length ? installed[i] : 0;
+            if (nextPart > installedPart) return true;
+            if (nextPart < installedPart) return false;
+        }
+        return false;
+    }
+
+    private int[] versionParts(String value) {
+        String cleaned = String.valueOf(value).replaceFirst("^[vV]", "");
+        String[] rawParts = cleaned.split("\\.");
+        int[] parts = new int[rawParts.length];
+        for (int i = 0; i < rawParts.length; i++) {
+            try {
+                parts[i] = Integer.parseInt(rawParts[i].replaceAll("[^0-9]", ""));
+            } catch (Exception ignored) {
+                parts[i] = 0;
+            }
+        }
+        return parts;
     }
 
     private void downloadApk(JSONObject apk, String commandId) {
@@ -778,7 +821,32 @@ public class MainActivity extends Activity {
         return "UZ";
     }
 
+    private String ruText(String key) {
+        switch (key) {
+            case "loading": return "\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u044f...";
+            case "pairMessage": return "\u0421\u043e\u0437\u0434\u0430\u0439\u0442\u0435 \u043b\u043e\u043a\u0430\u0446\u0438\u044e \u0432 \u0430\u0434\u043c\u0438\u043d-\u043f\u0430\u043d\u0435\u043b\u0438 \u0441 \u044d\u0442\u0438\u043c \u043a\u043e\u0434\u043e\u043c.";
+            case "stableCode": return "\u041a\u043e\u0434 \u0443\u0441\u0442\u0440\u043e\u0439\u0441\u0442\u0432\u0430 \u043d\u0435 \u043c\u0435\u043d\u044f\u0435\u0442\u0441\u044f. \u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439\u0442\u0435 \u044d\u0442\u043e\u0442 \u043a\u043e\u0434 \u0432 \u0430\u0434\u043c\u0438\u043d-\u043f\u0430\u043d\u0435\u043b\u0438.";
+            case "pairTitle": return "\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u0443\u0441\u0442\u0440\u043e\u0439\u0441\u0442\u0432\u0430";
+            case "pairSubtitle": return "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u044d\u0442\u043e\u0442 \u043a\u043e\u0434 \u0432 \u043b\u043e\u043a\u0430\u0446\u0438\u0438 \u0430\u0434\u043c\u0438\u043d-\u043f\u0430\u043d\u0435\u043b\u0438";
+            case "waiting": return "\u041e\u0436\u0438\u0434\u0430\u043d\u0438\u0435 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u044f...";
+            case "deviceCode": return "\u041a\u043e\u0434 \u0443\u0441\u0442\u0440\u043e\u0439\u0441\u0442\u0432\u0430";
+            case "app": return "\u041f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435";
+            case "server": return "\u0421\u0435\u0440\u0432\u0435\u0440";
+            case "language": return "\u042f\u0437\u044b\u043a";
+            case "languageHint": return "MENU: \u0441\u043c\u0435\u043d\u0438\u0442\u044c \u044f\u0437\u044b\u043a";
+            case "noInternet": return "\u041d\u0435\u0442 \u0438\u043d\u0442\u0435\u0440\u043d\u0435\u0442\u0430. \u041e\u0436\u0438\u0434\u0430\u0435\u0442\u0441\u044f \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u043a \u0430\u0434\u043c\u0438\u043d-\u043f\u0430\u043d\u0435\u043b\u0438.";
+            case "noCache": return "\u041d\u0435\u0442 \u0438\u043d\u0442\u0435\u0440\u043d\u0435\u0442\u0430. \u041a\u044d\u0448 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d.";
+            case "unpaired": return "\u042d\u0442\u043e\u0442 \u043a\u043e\u0434 \u0435\u0449\u0435 \u043d\u0435 \u043f\u0440\u0438\u0432\u044f\u0437\u0430\u043d \u043a \u043b\u043e\u043a\u0430\u0446\u0438\u0438 \u0432 \u0430\u0434\u043c\u0438\u043d-\u043f\u0430\u043d\u0435\u043b\u0438.";
+            case "workEnded": return "\u0420\u0430\u0431\u043e\u0447\u0435\u0435 \u0432\u0440\u0435\u043c\u044f \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u043e";
+            case "noContent": return "\u041a\u043e\u043d\u0442\u0435\u043d\u0442 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442";
+            case "online": return "\u041e\u043d\u043b\u0430\u0439\u043d";
+            case "offline": return "\u041e\u0444\u043b\u0430\u0439\u043d";
+        }
+        return key;
+    }
+
     private String t(String key) {
+        if ("ru".equals(language)) return ruText(key);
         if ("ru".equals(language)) {
             switch (key) {
                 case "loading": return "Подготовка подключения...";

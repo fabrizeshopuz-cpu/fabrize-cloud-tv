@@ -436,7 +436,7 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
   }, [pushToast]);
 
   const sendCommand = useCallback((deviceId: string, type: CommandType) => {
-    const command: DeviceCommand = { id: uid("cmd"), deviceId, type, status: "running", message: "Buyruq yuborildi", createdAt: formatDateTime() };
+    const command: DeviceCommand = { id: uid("cmd"), deviceId, type, status: "queued", message: "Buyruq navbatga qo'yildi", createdAt: formatDateTime() };
     setCommands((current) => [command, ...current]);
     pushToast("Qurilmaga buyruq yuborildi.");
     return command;
@@ -653,7 +653,7 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
       return;
     }
     const source = devices[0];
-    const latestApkVersion = apkVersions.find((version) => version.status === "latest")?.version || source?.apkVersion || "v1.2.1";
+    const latestApkVersion = apkVersions.find((version) => version.status === "latest")?.version || source?.apkVersion || "v1.2.2";
     const cleanCode = code.trim().toUpperCase().replace(/^CM-PAIR-/i, "").replace(/^CMPAIR/i, "").replace(/[^A-Z0-9]/g, "");
     setDevices((current) => [{
       id: uid("device"),
@@ -912,10 +912,10 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
   const uploadApk = useCallback(() => {
     setApkVersions((current) => [{
       id: uid("apk"),
-      version: "v1.0.9",
-      changelog: "Media3 ExoPlayer playback, player error logging va APK install prompt",
-      fileName: "castmap-player-1.0.9.apk",
-      size: "6.0 MB",
+      version: "v1.2.2",
+      changelog: "Auto update polling, live monitoring va admin rollout command",
+      fileName: "castmap-player-1.2.2.apk",
+      size: "6.3 MB",
       status: "staged",
       installedDevices: 0,
       failedDevices: 0,
@@ -925,9 +925,24 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
   }, [pushToast]);
 
   const rolloutApk = useCallback((versionId: string) => {
-    setApkVersions((current) => current.map((version) => version.id === versionId ? { ...version, status: "latest", installedDevices: devices.length } : { ...version, status: version.status === "latest" ? "active" : version.status }));
-    pushToast("APK rollout boshlandi.");
-  }, [devices.length, pushToast]);
+    const targetVersion = apkVersions.find((version) => version.id === versionId);
+    setApkVersions((current) => current.map((version) => version.id === versionId ? { ...version, status: "latest" } : { ...version, status: version.status === "latest" ? "active" : version.status }));
+    if (targetVersion) {
+      const updateCommands = devices
+        .filter((device) => device.apkVersion !== targetVersion.version)
+        .map((device) => ({
+          id: uid("cmd"),
+          deviceId: device.id,
+          type: "UPDATE_APK" as const,
+          status: "queued" as const,
+          message: `${targetVersion.version} versiyasiga yangilash navbatga qo'yildi`,
+          createdAt: formatDateTime(),
+        }));
+      if (updateCommands.length) setCommands((current) => [...updateCommands, ...current]);
+      setDevices((current) => current.map((device) => device.apkVersion !== targetVersion.version ? { ...device, status: "update" as const } : device));
+    }
+    pushToast("APK rollout boshlandi. Eski APKdagi TVlarga update command yuborildi.");
+  }, [apkVersions, devices, pushToast]);
 
   const rollbackApk = useCallback((versionId: string) => {
     setApkVersions((current) => current.map((version) => version.id === versionId ? { ...version, status: "rollback" } : version));

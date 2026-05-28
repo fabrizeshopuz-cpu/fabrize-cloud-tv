@@ -14,8 +14,8 @@ android {
         applicationId "uz.castmap.connectedplayer"
         minSdk 23
         targetSdk 36
-        versionCode 12
-        versionName "1.2.1"
+        versionCode 13
+        versionName "1.2.2"
 
         buildConfigField "String", "SERVER_BASE_URL", "\"https://castmap.uz\""
     }
