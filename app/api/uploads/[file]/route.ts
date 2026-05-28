@@ -1,11 +1,16 @@
 import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
+import { promisify } from "node:util";
+import ffmpegPath from "ffmpeg-static";
 import { NextResponse } from "next/server";
-import { readUploadedFileFromDb } from "@/lib/serverDb";
+import { readUploadedFileFromDb, saveUploadedFileToDb } from "@/lib/serverDb";
 
 const uploadDir = path.join(process.cwd(), "data", "uploads");
+const execFileAsync = promisify(execFile);
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -81,9 +86,82 @@ function rangeNotSatisfiable(size: number) {
   });
 }
 
+async function readUploadBuffer(safeFile: string) {
+  const dbFile = await readUploadedFileFromDb(safeFile);
+  if (dbFile) {
+    return {
+      data: Buffer.isBuffer(dbFile.data) ? dbFile.data : Buffer.from(dbFile.data),
+      mime: dbFile.mime || mimeByExt[path.extname(safeFile).toLowerCase()] || "application/octet-stream",
+    };
+  }
+
+  const filePath = path.join(uploadDir, safeFile);
+  return {
+    data: await readFile(filePath),
+    mime: mimeByExt[path.extname(safeFile).toLowerCase()] || "application/octet-stream",
+  };
+}
+
+async function uploadExists(safeFile: string) {
+  if (await readUploadedFileFromDb(safeFile)) return true;
+  try {
+    await stat(path.join(uploadDir, safeFile));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureMp4Preview(safeFile: string) {
+  if (!/\.mov$/i.test(safeFile)) return safeFile;
+  const previewFile = safeFile.replace(/\.mov$/i, ".preview.mp4");
+  if (await uploadExists(previewFile)) return previewFile;
+  if (!ffmpegPath) return safeFile;
+
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "castmap-preview-"));
+  try {
+    const source = await readUploadBuffer(safeFile);
+    const inputPath = path.join(tempDir, safeFile);
+    const outputPath = path.join(tempDir, previewFile);
+    await writeFile(inputPath, source.data);
+    await execFileAsync(ffmpegPath, [
+      "-y",
+      "-i", inputPath,
+      "-c:v", "libx264",
+      "-preset", "veryfast",
+      "-pix_fmt", "yuv420p",
+      "-c:a", "aac",
+      "-movflags", "+faststart",
+      outputPath,
+    ], { timeout: 120_000 });
+
+    const preview = await readFile(outputPath);
+    const savedToDb = await saveUploadedFileToDb({
+      fileName: previewFile,
+      originalName: previewFile,
+      mime: "video/mp4",
+      sizeBytes: preview.length,
+      data: preview,
+    });
+    if (!savedToDb) {
+      await mkdir(uploadDir, { recursive: true });
+      await writeFile(path.join(uploadDir, previewFile), preview);
+    }
+
+    return previewFile;
+  } catch {
+    return safeFile;
+  } finally {
+    await rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
+
 async function uploadResponse(request: Request, params: Promise<{ file: string }>, headOnly = false) {
   const { file } = await params;
-  const safeFile = path.basename(decodeURIComponent(file));
+  let safeFile = path.basename(decodeURIComponent(file));
+  const preview = new URL(request.url).searchParams.get("preview");
+  if (preview === "mp4") safeFile = await ensureMp4Preview(safeFile);
+
   const dbFile = await readUploadedFileFromDb(safeFile);
   if (dbFile) {
     const data = Buffer.isBuffer(dbFile.data) ? dbFile.data : Buffer.from(dbFile.data);
