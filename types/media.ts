@@ -30,6 +30,7 @@ export interface MediaAsset {
   lastPlayed?: string;
   playbackCount: number;
   cdnUrl?: string;
+  streamType?: "hls" | "dash" | "rtsp" | "progressive" | "stream";
 }
 
 export interface MediaFolder {
@@ -60,4 +61,6 @@ export interface UploadDraft {
   uploadedMime?: string;
   uploadedSizeBytes?: number;
   webUrl?: string;
+  sourceKind?: "file" | "stream" | "web";
+  streamType?: "hls" | "dash" | "rtsp" | "progressive" | "stream";
 }

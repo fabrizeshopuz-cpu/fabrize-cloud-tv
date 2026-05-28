@@ -39,9 +39,10 @@ export function tvMediaKind(asset: MediaAsset | undefined) {
 
 export function mediaMime(asset: MediaAsset | undefined) {
   const url = asset?.fileUrl || asset?.cdnUrl || "";
-  if (/^rtsp:\/\//i.test(url)) return "application/x-rtsp";
-  if (/\.m3u8($|\?)/i.test(url)) return "application/vnd.apple.mpegurl";
-  if (/\.mpd($|\?)/i.test(url)) return "application/dash+xml";
+  const streamKind = mediaStreamKind(asset);
+  if (streamKind === "rtsp") return "application/x-rtsp";
+  if (streamKind === "hls") return "application/vnd.apple.mpegurl";
+  if (streamKind === "dash") return "application/dash+xml";
   if (asset?.type === "image") return "image/jpeg";
   if (asset?.type === "web" || asset?.type === "html") return "text/html";
   return "video/mp4";
@@ -49,10 +50,13 @@ export function mediaMime(asset: MediaAsset | undefined) {
 
 export function mediaStreamKind(asset: MediaAsset | undefined) {
   const url = asset?.fileUrl || asset?.cdnUrl || "";
+  if (asset?.streamType) return asset.streamType;
+  if (/^https?:\/\/[^?#]*\.m3u8(?:$|[?#/])/i.test(url) || /m3u8/i.test(new URLSearchParams(url.split("?")[1] || "").toString())) return "hls";
+  if (/^https?:\/\/[^?#]*\.mpd(?:$|[?#/])/i.test(url) || /mpd/i.test(new URLSearchParams(url.split("?")[1] || "").toString())) return "dash";
   if (/^rtsp:\/\//i.test(url)) return "rtsp";
   if (/\.m3u8($|\?)/i.test(url)) return "hls";
   if (/\.mpd($|\?)/i.test(url)) return "dash";
-  if (/^(https?:)?\/\//i.test(url) && asset?.format === "URL" && asset?.type === "video") return "progressive";
+  if (/^(https?:)?\/\//i.test(url) && ["URL", "STREAM", "HLS", "DASH", "RTSP"].includes(String(asset?.format || "").toUpperCase()) && asset?.type === "video") return "progressive";
   return "";
 }
 

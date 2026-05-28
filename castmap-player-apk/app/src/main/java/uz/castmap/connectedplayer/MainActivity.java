@@ -60,7 +60,7 @@ public class MainActivity extends Activity {
     private static final String KEY_CODE = "device_code";
     private static final String KEY_LAST_PAYLOAD = "last_payload";
     private static final String KEY_LANGUAGE = "player_language";
-    private static final String APP_VERSION = "1.2.0";
+    private static final String APP_VERSION = "1.2.1";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -295,7 +295,7 @@ public class MainActivity extends Activity {
     private void pollServer() {
         executor.execute(() -> {
             try {
-                String url = BuildConfig.SERVER_BASE_URL + "/api/v2/player/playlist"
+                String url = BuildConfig.SERVER_BASE_URL + "/api/v2/player/playlist/" + URLEncoder.encode(deviceCode, "UTF-8")
                         + "?appVersion=" + URLEncoder.encode(APP_VERSION, "UTF-8");
                 String text = httpGet(url);
                 getPrefs().edit().putString(KEY_LAST_PAYLOAD, text).apply();
@@ -948,7 +948,6 @@ public class MainActivity extends Activity {
         String media3MimeType() {
             if ("hls".equals(streamType)) return "application/x-mpegURL";
             if ("dash".equals(streamType)) return "application/dash+xml";
-            if ("rtsp".equals(streamType)) return "application/x-rtsp";
             String lowerMime = mime == null ? "" : mime.toLowerCase(Locale.US);
             if (lowerMime.contains("mpegurl")) return "application/x-mpegURL";
             if (lowerMime.contains("dash")) return "application/dash+xml";

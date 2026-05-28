@@ -510,10 +510,11 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
     const type = draft.category || "video";
     const now = formatDateTime();
     const webUrl = normalizeWebUrl(draft.webUrl);
+    const streamType = draft.streamType || detectStreamType(webUrl);
     const fileUrl = webUrl || draft.uploadedFileUrl;
     const fileName = draft.uploadedFileName || draft.name.trim() || webUrlToName(webUrl);
     const fileSize = webUrl ? 0 : draft.uploadedSizeBytes || (type === "video" ? 44_879_052 : 4_404_019);
-    const format = webUrl ? "URL" : (draft.uploadedMime?.split("/")[1] || fileName.split(".").pop() || type).toUpperCase();
+    const format = webUrl ? streamFormat(streamType) : (draft.uploadedMime?.split("/")[1] || fileName.split(".").pop() || type).toUpperCase();
     const asset: MediaAsset = {
       id: uid("media"),
       name: draft.name.trim() || fileName || `castmap_${type}_asset`,
@@ -529,14 +530,14 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
         : type === "web"
           ? "about:blank"
           : "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"),
-      size: formatBytes(fileSize),
+      size: webUrl ? (streamType ? "Stream URL" : "URL") : formatBytes(fileSize),
       sizeBytes: fileSize,
       duration: type === "video" ? "00:15" : undefined,
-      resolution: type === "web" || type === "html" ? "Responsive" : "1920x1080",
+      resolution: streamType ? "Adaptive stream" : type === "web" || type === "html" ? "Responsive" : "1920x1080",
       orientation: type === "web" || type === "html" ? "responsive" : "landscape",
       format,
       folder: draft.folder || "Promo",
-      tags: draft.tags.length ? draft.tags : ["Promo"],
+      tags: streamType ? [...new Set([...(draft.tags.length ? draft.tags : ["Promo"]), "Stream"])] : draft.tags.length ? draft.tags : ["Promo"],
       uploadedBy: "Super Admin",
       uploadedAt: now,
       usedInPlaylists: draft.addToPlaylist ? 1 : 0,
@@ -544,6 +545,7 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
       lastPlayed: now,
       playbackCount: 0,
       cdnUrl: fileUrl || `https://cdn.castmap.uz/media/${encodeURIComponent(draft.name.trim() || `castmap_${type}_asset`)}`,
+      streamType,
     };
     setMedia((current) => [asset, ...current]);
     if (draft.addToPlaylist) {
@@ -651,7 +653,7 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
       return;
     }
     const source = devices[0];
-    const latestApkVersion = apkVersions.find((version) => version.status === "latest")?.version || source?.apkVersion || "v1.2.0";
+    const latestApkVersion = apkVersions.find((version) => version.status === "latest")?.version || source?.apkVersion || "v1.2.1";
     const cleanCode = code.trim().toUpperCase().replace(/^CM-PAIR-/i, "").replace(/^CMPAIR/i, "").replace(/[^A-Z0-9]/g, "");
     setDevices((current) => [{
       id: uid("device"),
@@ -1040,6 +1042,24 @@ function normalizeWebUrl(value?: string) {
   } catch {
     return "";
   }
+}
+
+function detectStreamType(value?: string): MediaAsset["streamType"] | undefined {
+  const trimmed = value?.trim().toLowerCase();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith("rtsp://")) return "rtsp";
+  if (trimmed.includes(".m3u8") || trimmed.includes("m3u8")) return "hls";
+  if (trimmed.includes(".mpd") || trimmed.includes("dash")) return "dash";
+  if (/^https?:\/\//.test(trimmed)) return "progressive";
+  return "stream";
+}
+
+function streamFormat(streamType: MediaAsset["streamType"] | undefined) {
+  if (streamType === "hls") return "HLS";
+  if (streamType === "dash") return "DASH";
+  if (streamType === "rtsp") return "RTSP";
+  if (streamType === "progressive") return "URL";
+  return "STREAM";
 }
 
 function webUrlToName(value: string) {

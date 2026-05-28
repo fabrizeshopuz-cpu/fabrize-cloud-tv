@@ -16,8 +16,24 @@ const initialDraft: UploadDraft = {
   webUrl: "",
 };
 
-export function MediaUploadModal({ open, onClose, onUpload }: { open: boolean; onClose: () => void; onUpload: (draft: UploadDraft) => Promise<MediaAsset> }) {
-  const [draft, setDraft] = useState<UploadDraft>(initialDraft);
+type UploadMode = "file" | "stream";
+
+function initialDraftForMode(mode: UploadMode): UploadDraft {
+  if (mode === "stream") {
+    return {
+      ...initialDraft,
+      name: "Live stream",
+      tags: ["Stream"],
+      category: "video",
+      sourceKind: "stream",
+      streamType: "stream",
+    };
+  }
+  return initialDraft;
+}
+
+export function MediaUploadModal({ open, mode = "file", onClose, onUpload }: { open: boolean; mode?: UploadMode; onClose: () => void; onUpload: (draft: UploadDraft) => Promise<MediaAsset> }) {
+  const [draft, setDraft] = useState<UploadDraft>(() => initialDraftForMode(mode));
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<"idle" | "uploading" | "complete" | "failed">("idle");
   const [error, setError] = useState("");
@@ -27,14 +43,14 @@ export function MediaUploadModal({ open, onClose, onUpload }: { open: boolean; o
 
   useEffect(() => {
     if (!open) {
-      setDraft(initialDraft);
+      setDraft(initialDraftForMode(mode));
       setProgress(0);
       setStatus("idle");
       setError("");
       setSelectedTag("Promo");
       setSelectedFile(null);
     }
-  }, [open]);
+  }, [mode, open]);
 
   const statusText = useMemo(() => ({
     idle: selectedFile
@@ -74,6 +90,7 @@ export function MediaUploadModal({ open, onClose, onUpload }: { open: boolean; o
   const submit = async () => {
     const normalizedWebUrl = normalizeWebUrl(draft.webUrl);
     const isUrlUpload = !selectedFile && Boolean(draft.webUrl?.trim());
+    const detectedStreamType = detectStreamType(normalizedWebUrl);
     if (!selectedFile && !normalizedWebUrl) {
       setError("To'g'ri fayl yoki URL kiriting.");
       setStatus("failed");
@@ -108,6 +125,8 @@ export function MediaUploadModal({ open, onClose, onUpload }: { open: boolean; o
         ...draft,
         ...uploaded,
         category: draft.category,
+        sourceKind: isUrlUpload && (mode === "stream" || detectedStreamType) ? "stream" : draft.sourceKind,
+        streamType: isUrlUpload ? detectedStreamType || draft.streamType : undefined,
         name: draft.name || selectedFile?.name || webUrlToName(normalizedWebUrl) || `castmap_${draft.category}_asset.${draft.category === "image" ? "jpg" : draft.category}`,
       });
       window.clearInterval(timer);
@@ -141,12 +160,12 @@ export function MediaUploadModal({ open, onClose, onUpload }: { open: boolean; o
             onDrop={(event) => {
               event.preventDefault();
               const file = event.dataTransfer.files[0];
-              if (file) pickFile(file);
+              if (mode === "file" && file) pickFile(file);
             }}
           >
             <Upload className="h-10 w-10 text-castGold" />
             <b className="mt-3 text-white">{statusText}</b>
-            <span className="mt-1 text-sm text-castMuted">Supported: MP4, MOV, WEBM, JPG, PNG, WEBP, SVG, GIF, PDF, URL, HTML</span>
+            <span className="mt-1 text-sm text-castMuted">{mode === "stream" ? "HLS .m3u8, DASH .mpd, RTSP yoki to'g'ridan-to'g'ri MP4 URL" : "Supported: MP4, MOV, WEBM, JPG, PNG, WEBP, SVG, GIF, PDF, URL, HTML"}</span>
             <input
               ref={fileInputRef}
               className="hidden"
@@ -157,9 +176,11 @@ export function MediaUploadModal({ open, onClose, onUpload }: { open: boolean; o
                 if (file) pickFile(file);
               }}
             />
-            <button className="mt-4 rounded-xl bg-gradient-to-r from-[#FFE18A] to-castDeepGold px-5 py-2 font-black text-black" type="button" onClick={() => fileInputRef.current?.click()}>
-              Fayl tanlash
-            </button>
+            {mode === "file" ? (
+              <button className="mt-4 rounded-xl bg-gradient-to-r from-[#FFE18A] to-castDeepGold px-5 py-2 font-black text-black" type="button" onClick={() => fileInputRef.current?.click()}>
+                Fayl tanlash
+              </button>
+            ) : null}
             {status !== "idle" ? (
               <div className="mt-4 h-2 w-full max-w-md overflow-hidden rounded-full bg-black/40">
                 <div className="h-full rounded-full bg-castGold" style={{ width: `${progress}%` }} />
@@ -175,14 +196,14 @@ export function MediaUploadModal({ open, onClose, onUpload }: { open: boolean; o
               </select>
             </label>
             <label className="grid gap-1 text-sm text-castMuted">Kategoriya
-              <select className="h-11 rounded-xl border border-white/10 bg-[#0D0D0D] px-3 text-white outline-none" value={draft.category} onChange={(event) => changeCategory(event.target.value as MediaType)}>
+              <select className="h-11 rounded-xl border border-white/10 bg-[#0D0D0D] px-3 text-white outline-none disabled:opacity-60" value={draft.category} disabled={mode === "stream"} onChange={(event) => changeCategory(event.target.value as MediaType)}>
                 {["video", "image", "web", "html", "pdf", "template"].map((type) => <option key={type}>{type}</option>)}
               </select>
             </label>
             <Field label="Expire date" value={draft.expireDate} onChange={(value) => setDraft({ ...draft, expireDate: value })} placeholder="2026-06-01" />
             {!selectedFile ? (
               <div className="md:col-span-2">
-                <Field label="URL / stream" type="url" value={draft.webUrl || ""} onChange={(value) => { setError(""); setDraft({ ...draft, webUrl: value }); }} placeholder="https://example.com/live.m3u8 yoki rtsp://camera/live" />
+                <Field label="URL / stream" type="url" value={draft.webUrl || ""} onChange={(value) => { setError(""); setDraft({ ...draft, webUrl: value, streamType: detectStreamType(value) || draft.streamType }); }} placeholder="https://example.com/live.m3u8 yoki rtsp://camera/live" />
               </div>
             ) : null}
           </div>
@@ -257,6 +278,16 @@ function normalizeWebUrl(value?: string) {
   } catch {
     return "";
   }
+}
+
+function detectStreamType(value?: string): UploadDraft["streamType"] | undefined {
+  const trimmed = value?.trim().toLowerCase();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith("rtsp://")) return "rtsp";
+  if (trimmed.includes(".m3u8") || trimmed.includes("m3u8")) return "hls";
+  if (trimmed.includes(".mpd") || trimmed.includes("dash")) return "dash";
+  if (/^https?:\/\//.test(trimmed)) return "progressive";
+  return "stream";
 }
 
 function webUrlToName(value: string) {

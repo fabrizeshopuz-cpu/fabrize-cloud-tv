@@ -492,17 +492,22 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
 function MediaPanel({ query }: { query: string }) {
   const store = useCastmapStore();
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadMode, setUploadMode] = useState<"file" | "stream">("file");
   const media = store.media.filter((asset) => includes(query, asset.name, asset.type, asset.folder));
   const targetPlaylist = store.playlists.find((playlist) => playlist.status === "published") || store.playlists[0];
+  const openUpload = (mode: "file" | "stream") => {
+    setUploadMode(mode);
+    setUploadOpen(true);
+  };
   return (
     <>
       <section className="grid gap-4 md:grid-cols-3">
         {[
-          ["Video", "MP4, MOV, WEBM yoki HLS/MP4 URL"],
-          ["Rasm", "JPG, PNG, WEBP, SVG"],
-          ["Stream URL", "Web sahifa, live stream yoki tashqi link"],
-        ].map(([title, detail]) => (
-          <button key={title} className="rounded-lg border border-white/10 bg-[#111] p-4 text-left transition hover:border-castGold/35" type="button" onClick={() => setUploadOpen(true)}>
+          ["Video", "MP4, MOV, WEBM yoki HLS/MP4 URL", "file"],
+          ["Rasm", "JPG, PNG, WEBP, SVG", "file"],
+          ["Stream URL", "HLS, DASH, RTSP yoki MP4 live URL", "stream"],
+        ].map(([title, detail, mode]) => (
+          <button key={title} className="rounded-lg border border-white/10 bg-[#111] p-4 text-left transition hover:border-castGold/35" type="button" onClick={() => openUpload(mode as "file" | "stream")}>
             <Clapperboard className="h-5 w-5 text-castGold" />
             <b className="mt-4 block text-white">{title}</b>
             <span className="mt-2 block text-sm text-castMuted">{detail}</span>
@@ -511,7 +516,7 @@ function MediaPanel({ query }: { query: string }) {
       </section>
 
       <section className="rounded-lg border border-white/10 bg-[#111]">
-        <PanelHeader icon={Clapperboard} title="Media kutubxona" action="Media qo'shish" onAction={() => setUploadOpen(true)} />
+        <PanelHeader icon={Clapperboard} title="Media kutubxona" action="Media qo'shish" onAction={() => openUpload("file")} />
         <div className="overflow-x-auto">
           <table className="w-full min-w-[880px] text-left text-sm">
             <thead className="text-xs uppercase text-castMuted">
@@ -540,6 +545,7 @@ function MediaPanel({ query }: { query: string }) {
       </section>
       <MediaUploadModal
         open={uploadOpen}
+        mode={uploadMode}
         onClose={() => setUploadOpen(false)}
         onUpload={async (draft) => store.createMediaFromDraft({ ...draft, approvalRequired: false })}
       />

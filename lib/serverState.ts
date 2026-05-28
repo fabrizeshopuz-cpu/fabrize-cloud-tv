@@ -40,10 +40,10 @@ const dataDir = path.join(process.cwd(), "data");
 const statePath = path.join(dataDir, "castmap-state.json");
 
 const defaultApkVersions: ApkVersion[] = [{
-  id: "apk-1-2-0-20260528",
-  version: "v1.2.0",
-  changelog: "Day/night panel UI, UZ/RU/EN player language va HLS/DASH/RTSP stream playback",
-  fileName: "castmap-player-1.2.0.apk",
+  id: "apk-1-2-1-20260528",
+  version: "v1.2.1",
+  changelog: "Device-code playlist sync, HTTP/HLS/DASH/RTSP stream playback va stream upload mode",
+  fileName: "castmap-player-1.2.1.apk",
   size: "6.2 MB",
   status: "latest",
   installedDevices: 0,
@@ -101,7 +101,7 @@ const defaultDevices: Device[] = [{
   playlist: "Start playlist",
   lastSeen: "Hozir",
   lastHeartbeat: "2026-05-27T15:00:00.000Z",
-  apkVersion: "v1.2.0",
+  apkVersion: "v1.2.1",
   ipAddress: "192.168.0.101",
   macAddress: "00:00:00:00:00:00",
   uptime: "0d 0h",

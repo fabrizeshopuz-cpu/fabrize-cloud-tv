@@ -247,6 +247,7 @@ export async function fetchMediaAssets() {
 export async function uploadMediaAsset(draft: UploadDraft): Promise<MediaAsset> {
   await delay();
   const webUrl = normalizeWebUrl(draft.webUrl);
+  const streamType = draft.streamType || detectStreamType(webUrl);
   const fileUrl = webUrl || draft.uploadedFileUrl || `https://cdn.castmap.uz/media/${encodeURIComponent(draft.name || "yangi_media")}`;
   const sizeBytes = webUrl ? 0 : draft.uploadedSizeBytes || (draft.category === "video" ? 25_165_824 : 3_145_728);
   return {
@@ -261,7 +262,7 @@ export async function uploadMediaAsset(draft: UploadDraft): Promise<MediaAsset> 
     duration: draft.category === "video" ? "00:20" : undefined,
     resolution: draft.category === "html" || draft.category === "web" ? "Responsive" : "1920x1080",
     orientation: draft.category === "html" || draft.category === "web" ? "responsive" : "landscape",
-    format: webUrl ? "URL" : draft.category.toUpperCase(),
+    format: webUrl ? streamFormat(streamType) : draft.category.toUpperCase(),
     folder: draft.folder,
     tags: draft.tags,
     uploadedBy: "Super Admin",
@@ -270,6 +271,7 @@ export async function uploadMediaAsset(draft: UploadDraft): Promise<MediaAsset> 
     usedOnScreens: 0,
     playbackCount: 0,
     cdnUrl: fileUrl,
+    streamType,
   };
 }
 
@@ -306,6 +308,24 @@ function normalizeWebUrl(value?: string) {
   } catch {
     return "";
   }
+}
+
+function detectStreamType(value?: string): MediaAsset["streamType"] | undefined {
+  const trimmed = value?.trim().toLowerCase();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith("rtsp://")) return "rtsp";
+  if (trimmed.includes(".m3u8") || trimmed.includes("m3u8")) return "hls";
+  if (trimmed.includes(".mpd") || trimmed.includes("dash")) return "dash";
+  if (/^https?:\/\//.test(trimmed)) return "progressive";
+  return "stream";
+}
+
+function streamFormat(streamType: MediaAsset["streamType"] | undefined) {
+  if (streamType === "hls") return "HLS";
+  if (streamType === "dash") return "DASH";
+  if (streamType === "rtsp") return "RTSP";
+  if (streamType === "progressive") return "URL";
+  return "STREAM";
 }
 
 function webUrlToName(value: string) {
