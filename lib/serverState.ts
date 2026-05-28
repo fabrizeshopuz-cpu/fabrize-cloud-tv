@@ -40,15 +40,15 @@ const dataDir = path.join(process.cwd(), "data");
 const statePath = path.join(dataDir, "castmap-state.json");
 
 const defaultApkVersions: ApkVersion[] = [{
-  id: "apk-1-2-2-20260528",
-  version: "v1.2.2",
-  changelog: "Auto update polling, admin rollout command va live monitoring",
-  fileName: "castmap-player-1.2.2.apk",
+  id: "apk-1-2-3-20260528",
+  version: "v1.2.3",
+  changelog: "On-demand TV screenshot capture for live monitoring",
+  fileName: "castmap-player-1.2.3.apk",
   size: "6.3 MB",
   status: "latest",
   installedDevices: 0,
   failedDevices: 0,
-  uploadedAt: "2026-05-28 16:10",
+  uploadedAt: "2026-05-28 21:20",
 }];
 
 const defaultBranches: Branch[] = [{
@@ -101,7 +101,7 @@ const defaultDevices: Device[] = [{
   playlist: "Start playlist",
   lastSeen: "Hozir",
   lastHeartbeat: "2026-05-27T15:00:00.000Z",
-  apkVersion: "v1.2.2",
+  apkVersion: "v1.2.3",
   ipAddress: "192.168.0.101",
   macAddress: "00:00:00:00:00:00",
   uptime: "0d 0h",

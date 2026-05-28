@@ -681,7 +681,7 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
       return;
     }
     const source = devices[0];
-    const latestApkVersion = apkVersions.find((version) => version.status === "latest")?.version || source?.apkVersion || "v1.2.2";
+    const latestApkVersion = apkVersions.find((version) => version.status === "latest")?.version || source?.apkVersion || "v1.2.3";
     const cleanCode = code.trim().toUpperCase().replace(/^CM-PAIR-/i, "").replace(/^CMPAIR/i, "").replace(/[^A-Z0-9]/g, "");
     setDevices((current) => [{
       id: uid("device"),
@@ -940,9 +940,9 @@ export function CastmapProvider({ children }: { children: ReactNode }) {
   const uploadApk = useCallback(() => {
     setApkVersions((current) => [{
       id: uid("apk"),
-      version: "v1.2.2",
-      changelog: "Auto update polling, live monitoring va admin rollout command",
-      fileName: "castmap-player-1.2.2.apk",
+      version: "v1.2.3",
+      changelog: "On-demand TV screenshot capture for live monitoring",
+      fileName: "castmap-player-1.2.3.apk",
       size: "6.3 MB",
       status: "staged",
       installedDevices: 0,

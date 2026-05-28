@@ -14,6 +14,7 @@ export function LivePreview({ device, media, source, waitingClassName = "text-sm
   const videoRef = useRef<HTMLVideoElement>(null);
   const isVideo = media?.type === "video";
   const playableSource = isVideo ? browserPreviewSource(source, media) : source;
+  const isImageSource = Boolean(source && /(?:^data:image\/|[.](?:png|jpe?g|webp)(?:$|[?#]))/i.test(source));
 
   useEffect(() => {
     const video = videoRef.current;
@@ -39,6 +40,10 @@ export function LivePreview({ device, media, source, waitingClassName = "text-sm
       video.removeEventListener("loadeddata", play);
     };
   }, [isVideo, media?.id, playableSource]);
+
+  if (source && isImageSource) {
+    return <img className="h-full w-full object-contain" src={source} alt={media?.name || device.name} />;
+  }
 
   if (isVideo && playableSource) {
     return (

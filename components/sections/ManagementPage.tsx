@@ -687,7 +687,7 @@ function MonitoringContent({ query, openDrawer }: { query: string; openDrawer: (
       {devices.map((device) => {
         const playlistItem = store.playlists.flatMap((playlist) => playlist.items).find((item) => item.id === device.currentMediaId);
         const current = store.media.find((media) => media.id === device.currentMediaId || media.id === playlistItem?.mediaId);
-        const previewUrl = current?.fileUrl || current?.cdnUrl || device.screenshotUrl;
+        const previewUrl = device.screenshotUrl;
         return (
         <Card key={device.id} className="p-3">
           <div className="aspect-video overflow-hidden rounded-xl border border-white/10 bg-black">

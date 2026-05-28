@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.media.AudioManager;
@@ -13,11 +15,14 @@ import android.media.MediaPlayer;
 import android.net.ConnectivityManager;
 import android.net.NetworkCapabilities;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Base64;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.PixelCopy;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -40,6 +45,7 @@ import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -62,7 +68,7 @@ public class MainActivity extends Activity {
     private static final String KEY_LANGUAGE = "player_language";
     private static final String KEY_LAST_COMMAND_ID = "last_command_id";
     private static final String KEY_LAST_UPDATE_VERSION = "last_update_version";
-    private static final String APP_VERSION = "1.2.2";
+    private static final String APP_VERSION = "1.2.3";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -559,7 +565,79 @@ public class MainActivity extends Activity {
         } else if ("update".equals(type)) {
             JSONObject apk = device.optJSONObject("latestApk");
             if (apk != null) downloadApk(apk, commandId);
+        } else if ("screenshot".equals(type)) {
+            captureAndUploadScreenshot(commandId);
         }
+    }
+
+    private void captureAndUploadScreenshot(String commandId) {
+        runOnUiThread(() -> {
+            try {
+                if (root == null || root.getWidth() <= 0 || root.getHeight() <= 0) {
+                    postCommandStatus(commandId, "screenshot", "Screenshot xatosi: ekran tayyor emas");
+                    return;
+                }
+
+                int width = root.getWidth();
+                int height = root.getHeight();
+                float scale = Math.min(1f, 960f / Math.max(width, height));
+                int outputWidth = Math.max(1, Math.round(width * scale));
+                int outputHeight = Math.max(1, Math.round(height * scale));
+                Bitmap bitmap = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888);
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    int[] location = new int[2];
+                    root.getLocationInWindow(location);
+                    Rect source = new Rect(location[0], location[1], location[0] + width, location[1] + height);
+                    PixelCopy.request(getWindow(), source, bitmap, result -> {
+                        if (result == PixelCopy.SUCCESS) {
+                            uploadScreenshotBitmap(bitmap, commandId);
+                        } else {
+                            bitmap.recycle();
+                            captureWithCanvas(commandId, width, height, outputWidth, outputHeight);
+                        }
+                    }, handler);
+                } else {
+                    captureWithCanvas(commandId, width, height, outputWidth, outputHeight);
+                }
+            } catch (Exception e) {
+                postCommandStatus(commandId, "screenshot", "Screenshot xatosi: " + e.getMessage());
+            }
+        });
+    }
+
+    private void captureWithCanvas(String commandId, int width, int height, int outputWidth, int outputHeight) {
+        try {
+            Bitmap bitmap = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            canvas.scale(outputWidth / (float) width, outputHeight / (float) height);
+            root.draw(canvas);
+            uploadScreenshotBitmap(bitmap, commandId);
+        } catch (Exception e) {
+            postCommandStatus(commandId, "screenshot", "Screenshot xatosi: " + e.getMessage());
+        }
+    }
+
+    private void uploadScreenshotBitmap(Bitmap bitmap, String commandId) {
+        executor.execute(() -> {
+            try {
+                ByteArrayOutputStream output = new ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 72, output);
+                bitmap.recycle();
+                String imageBase64 = Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP);
+
+                JSONObject body = new JSONObject();
+                body.put("code", deviceCode);
+                body.put("deviceId", currentDevice == null ? deviceCode : currentDevice.optString("id", currentDevice.optString("deviceId", deviceCode)));
+                body.put("commandId", commandId);
+                body.put("mime", "image/jpeg");
+                body.put("imageBase64", imageBase64);
+                body.put("appVersion", APP_VERSION);
+                httpPost(BuildConfig.SERVER_BASE_URL + "/api/player/screenshot", body.toString());
+            } catch (Exception e) {
+                postCommandStatus(commandId, "screenshot", "Screenshot xatosi: " + e.getMessage());
+            }
+        });
     }
 
     private void applyAutomaticUpdate(JSONObject device) {

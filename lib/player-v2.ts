@@ -42,7 +42,7 @@ function commandForPlayer(command: DeviceCommand) {
     REBOOT_DEVICE: "restart",
     STOP_PLAYBACK: "refresh",
     RESUME_PLAYBACK: "refresh",
-    TAKE_SCREENSHOT: "refresh",
+    TAKE_SCREENSHOT: "screenshot",
     SHOW_EMERGENCY_MESSAGE: "refresh",
   };
   return {

@@ -584,7 +584,7 @@ function LivePanel({ query }: { query: string }) {
     <section className="grid gap-4 xl:grid-cols-3 md:grid-cols-2">
       {devices.map((device) => {
         const current = findCurrentMedia(device, store.media, store.playlists);
-        const source = current?.fileUrl || current?.cdnUrl || device.screenshotUrl;
+        const source = device.screenshotUrl;
         return (
           <article key={device.id} className="rounded-lg border border-white/10 bg-[#111] p-4">
             <div className="flex items-start justify-between gap-3">
@@ -599,6 +599,7 @@ function LivePanel({ query }: { query: string }) {
             </div>
             <div className="mt-4 grid gap-2 text-sm">
               <MiniStat label="Hozir ko'rsatyapti" value={current?.name || device.playlist || "Ma'lumot yo'q"} />
+              <MiniStat label="Screenshot" value={device.screenshotUrl ? "Oxirgi kadr olindi" : "Screenshot tugmasini bosing"} />
               <MiniStat label="Heartbeat" value={device.lastHeartbeat || device.lastSeen || "Kutilmoqda"} />
               <MiniStat label="APK" value={device.apkVersion} />
             </div>
