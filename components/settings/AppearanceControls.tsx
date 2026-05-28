@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Languages, Moon, Sun } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 type ThemeMode = "dark" | "light";
 type UiLanguage = "uz" | "ru" | "en";
@@ -17,10 +18,12 @@ function isLanguage(value: string | null): value is UiLanguage {
 }
 
 export function AppearanceControls() {
+  const pathname = usePathname();
   const [theme, setTheme] = useState<ThemeMode>("dark");
   const [language, setLanguage] = useState<UiLanguage>("uz");
 
   useEffect(() => {
+    if (pathname === "/") return;
     const savedTheme = window.localStorage.getItem("castmap-theme") === "light" ? "light" : "dark";
     const savedLanguage = window.localStorage.getItem("castmap-language");
     const nextLanguage = isLanguage(savedLanguage) ? savedLanguage : "uz";
@@ -29,7 +32,7 @@ export function AppearanceControls() {
     document.documentElement.dataset.theme = savedTheme;
     document.documentElement.dataset.lang = nextLanguage;
     document.documentElement.lang = nextLanguage;
-  }, []);
+  }, [pathname]);
 
   const updateTheme = (nextTheme: ThemeMode) => {
     setTheme(nextTheme);
@@ -45,6 +48,10 @@ export function AppearanceControls() {
   };
 
   const text = labels[language];
+
+  if (pathname === "/") {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-4 right-4 z-[90] flex max-w-[calc(100vw-32px)] flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-black/75 p-2 text-xs font-black text-white shadow-gold backdrop-blur-xl">
