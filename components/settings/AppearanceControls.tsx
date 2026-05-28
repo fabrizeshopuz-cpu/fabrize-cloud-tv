@@ -49,7 +49,7 @@ export function AppearanceControls() {
 
   const text = labels[language];
 
-  if (pathname === "/") {
+  if (pathname === "/" || pathname === "/promo-video") {
     return null;
   }
 
