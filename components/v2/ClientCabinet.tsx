@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Activity, CheckCircle2, Clapperboard, Eye, GalleryVerticalEnd, MapPin, Monitor, Pause, Play, Plus, RefreshCw, Search, Smartphone, Trash2, Zap } from "lucide-react";
+import { LivePreview } from "@/components/live/LivePreview";
 import { MediaUploadModal } from "@/components/media/MediaUploadModal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -584,7 +585,6 @@ function LivePanel({ query }: { query: string }) {
       {devices.map((device) => {
         const current = findCurrentMedia(device, store.media, store.playlists);
         const source = current?.fileUrl || current?.cdnUrl || device.screenshotUrl;
-        const isVideo = current?.type === "video";
         return (
           <article key={device.id} className="rounded-lg border border-white/10 bg-[#111] p-4">
             <div className="flex items-start justify-between gap-3">
@@ -595,15 +595,7 @@ function LivePanel({ query }: { query: string }) {
               <V2Status value={device.status} />
             </div>
             <div className="mt-4 aspect-video overflow-hidden rounded-lg border border-white/10 bg-black">
-              {isVideo && source ? (
-                <video key={`${device.id}-${device.currentMediaId}-${source}`} className="h-full w-full object-contain" src={source} muted autoPlay loop controls playsInline preload="auto" />
-              ) : current?.type === "web" && source ? (
-                <iframe key={`${device.id}-${device.currentMediaId}-${source}`} className="h-full w-full border-0 bg-white" src={source} title={current.name} />
-              ) : source ? (
-                <img className="h-full w-full object-contain" src={source} alt={current?.name || device.name} />
-              ) : (
-                <div className="grid h-full place-items-center text-sm font-bold text-castMuted">Live preview kutilmoqda</div>
-              )}
+              <LivePreview device={device} media={current} source={source} />
             </div>
             <div className="mt-4 grid gap-2 text-sm">
               <MiniStat label="Hozir ko'rsatyapti" value={current?.name || device.playlist || "Ma'lumot yo'q"} />

@@ -26,6 +26,7 @@ import {
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { LivePreview } from "@/components/live/LivePreview";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -690,7 +691,7 @@ function MonitoringContent({ query, openDrawer }: { query: string; openDrawer: (
         return (
         <Card key={device.id} className="p-3">
           <div className="aspect-video overflow-hidden rounded-xl border border-white/10 bg-black">
-            {current?.type === "video" && previewUrl ? <video key={`${device.id}-${device.currentMediaId}-${previewUrl}`} src={previewUrl} className="h-full w-full object-contain" muted autoPlay loop controls playsInline preload="auto" /> : current?.type === "web" && previewUrl ? <iframe key={`${device.id}-${device.currentMediaId}-${previewUrl}`} src={previewUrl} title={current.name} className="h-full w-full border-0 bg-white" /> : previewUrl ? <img src={previewUrl} alt={device.name} className="h-full w-full object-contain" /> : <div className="grid h-full place-items-center text-castMuted">Live preview kutilmoqda</div>}
+            <LivePreview device={device} media={current} source={previewUrl} waitingClassName="text-castMuted" />
           </div>
           <div className="mt-3 flex items-start justify-between gap-3">
             <div>
